@@ -1,0 +1,86 @@
+# Central research configuration.
+#
+# Keep research choices here instead of scattering years, HTS codes and origin
+# lists across scripts.  The pipeline records a copy of this configuration in
+# every run manifest so a result can be reproduced later.
+
+[study]
+# DataWeb provides annual U.S. trade data back to 1989 for this workflow.
+annual_start_year = 1989
+annual_end_year = 2025
+
+# Monthly detail is used for the portable-computer event study.  The latest
+# available 2026 observation in the current research snapshot is August.
+monthly_start_year = 2017
+monthly_end_year = 2026
+ytd_end_month = 8
+
+# Comparable full years used in the product reallocation screen.
+compare_base_year = 2024
+compare_year = 2025
+
+# Broad HTS2 structure first; individual HTS6 products are studied afterward.
+selected_chapters = ["84", "85", "87", "94", "95"]
+priority_origins = ["China", "Vietnam", "Mexico", "Taiwan", "Thailand", "India"]
+
+[dataweb]
+base_url = "https://datawebws.usitc.gov/dataweb/api/v2/report2/runReport"
+timeout_seconds = 120
+# DataWeb rejects a totalRecords setting above 20,000 (seen 2026-11-06); a query here returns a few thousand rows.
+max_records = 20000
+# Waits after consecutive retryable failures (for example HTTP 429).
+retry_delays = [5, 15, 30, 60]
+
+[paths]
+# All paths are relative to the project root and are resolved by config.py.
+raw_dataweb = "data/raw/dataweb"
+raw_fred = "data/raw/fred"
+interim = "data/interim"
+processed = "data/processed"
+output_tables = "outputs/tables"
+output_charts = "outputs/charts"
+findings = "outputs/findings.json"
+manifest = "outputs/run_manifest.json"
+
+# Focus products used by the existing research.  Keep codes as quoted strings:
+# HTS identifiers are labels, not numbers, and may contain leading zeroes.
+[[products]]
+code = "841869"
+name = "Refrigeration equipment"
+role = "reallocation_screen"
+
+[[products]]
+code = "847130"
+name = "Portable computers"
+role = "laptop_event_study"
+
+[[products]]
+code = "851713"
+name = "Smartphones"
+role = "reallocation_screen"
+
+[[products]]
+code = "851830"
+name = "Headphones and earphones"
+role = "reallocation_screen"
+
+[[products]]
+code = "852852"
+name = "Computer monitors"
+role = "reallocation_screen"
+
+[[products]]
+code = "852872"
+name = "Color televisions"
+role = "reallocation_screen"
+
+[[products]]
+code = "940161"
+name = "Upholstered wooden seats"
+role = "reallocation_screen"
+
+[[products]]
+code = "950450"
+name = "Video game consoles"
+role = "reallocation_screen"
+

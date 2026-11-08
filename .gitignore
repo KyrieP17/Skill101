@@ -1,0 +1,16 @@
+# Local environments and caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets and machine-specific config
+.env
+skills/tariff-sourcing-research/config.json
+
+# Data and run outputs are rebuilt by the pipeline
+usitc-tariff-pipeline/data/
+usitc-tariff-pipeline/outputs/
+
+# Public HTS archive PDFs (URLs and SHA-256 in each history/SOURCES.md)
+usitc-tariff-pipeline/scopes/*/*/history/*.pdf

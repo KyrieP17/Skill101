@@ -1,0 +1,68 @@
+# Example study: China's share of U.S. laptop and tablet imports, 2017-2026.
+#
+# A study says how one approved scope is researched.  Only [periods] decides
+# which DataWeb queries the plan contains.  Origins, comparison years, event
+# windows and events are analysis settings: every query already returns all
+# origins plus an independent World total, so changing them needs no new plan
+# and no new download.
+#
+# The event windows below are the ones the original baseline hardcoded in
+# analysis.py, moved here so a new product or project can set its own.
+
+[study]
+study_id = "laptops-2017-2026"
+title = "Where did China's U.S. laptop and tablet import share go?"
+scope_manifest = "scopes/laptops/v2/manifest.json"
+
+[periods]
+annual = { start = 2017, end = 2025 }
+monthly = { start = 2017, end = 2026 }
+
+[origins]
+focal = "China"
+highlight = ["Vietnam", "Mexico", "Taiwan", "Thailand", "India"]
+
+[comparison]
+base_year = 2024
+compare_year = 2025
+
+[[event_windows]]
+id = "pre_covid"
+label = "Pre-COVID trend"
+start = "2018-01"
+end = "2019-12"
+
+[[event_windows]]
+id = "covid"
+label = "COVID disruption"
+start = "2020-03"
+end = "2021-12"
+
+[[event_windows]]
+id = "baseline"
+label = "Before the 2025 China tariff increases"
+start = "2024-11"
+end = "2025-01"
+
+[[event_windows]]
+id = "shock"
+label = "2025 tariff increases (floor search)"
+start = "2025-02"
+end = "2025-11"
+
+[[event_windows]]
+id = "recovery"
+label = "Partial return (peak search)"
+start = "2026-03"
+end = "2026-08"
+
+[events]
+ids = [
+  "section_301_list_3",
+  "list_4b_notice",
+  "covid_context",
+  "china_additional_10pp",
+  "china_additional_10pp_second",
+  "china_rate_adjustment",
+  "global_tariff_adjustment",
+]

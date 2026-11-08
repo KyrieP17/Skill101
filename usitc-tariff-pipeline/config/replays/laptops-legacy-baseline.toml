@@ -1,0 +1,24 @@
+# Labeled legacy replay of the laptop case: NOT an approved study run.
+#
+# These 24 snapshots were downloaded by the earlier, pre-scope project and
+# imported on 2026-11-05.  Their response hashes are checked; their request
+# payloads were never recorded, so they cannot prove they answer the query a
+# plan would send.  The scope is reviewed, not approved.  Outputs go to
+# outputs/replays/, and every manifest, chart and report says "legacy replay".
+# The gated run is: approve scopes/laptops/v2 -> plan -> acquire (token).
+
+[replay]
+replay_id = "laptops-legacy-baseline"
+study = "config/studies/laptops-2017-2026.toml"
+scope = "scopes/laptops/v2/reviewed.csv"
+reason = "Acceptance and regression run of the generic engine on the original baseline snapshots; scope not approved, payload hashes unavailable."
+
+[[snapshots]]
+template = "data/raw/dataweb/focus_hts6_{origins}_{year}.json"
+frequency = "annual"
+years = [2024, 2025]
+
+[[snapshots]]
+template = "data/raw/dataweb/laptop_hts6_monthly_{origins}_{year}.json"
+frequency = "monthly"
+years = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]

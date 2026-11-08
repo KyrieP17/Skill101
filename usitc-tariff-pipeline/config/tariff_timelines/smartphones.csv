@@ -1,0 +1,3 @@
+date,date_type,measure,rate_change,applies_to,origins,source,source_url,review_status,notes
+2025-04-11,announced,IEEPA reciprocal duty: smartphones (8517.13.00) added to the exceptions (9903.01.32),reciprocal duty not applied,,All origins,agent 记忆（未核对一手来源）,,draft,待核对：2025-04-11 的备忘录把 8517.13.00 等电子产品列入对等关税例外；编号 9903.01.32 和日期都需要一手来源。China 的 IEEPA fentanyl 关税（_country.csv）不在这条例外里
+2025-04-05,effective,IEEPA reciprocal duty exception for smartphones applies retroactively (9903.01.32),reciprocal duty not applied,,All origins,agent 记忆（未核对一手来源）,,draft,待核对：例外追溯到 2025-04-05 起入境的货物；这一天和 _country.csv 里对等关税基准税的生效日相同

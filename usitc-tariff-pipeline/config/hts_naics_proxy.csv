@@ -1,0 +1,5 @@
+hts_code,hts_level,series_id,naics,industry_name,mapping_quality,notes
+847130,6,IPG3341A,3341,Computer and peripheral equipment,broad,"The NAICS industry includes products beyond portable computers; use only as a directional domestic-output screen."
+940161,6,IPN3371A,3371,Household and institutional furniture and kitchen cabinets,broad,"The series is broader than upholstered wooden seats."
+841869,6,IPG3334A,3334,HVAC and commercial refrigeration equipment,weak,"The industry boundary differs materially from the HTS product boundary."
+

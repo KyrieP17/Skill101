@@ -1,0 +1,15 @@
+[study]
+study_id = "lithium-ion-annual-2017-2025"
+title = "Rechargeable lithium-ion cell and module sourcing"
+scope_manifest = "scopes/lithium-ion-cells-modules/v1/manifest.json"
+
+[periods]
+annual = { start = 2017, end = 2025 }
+
+[origins]
+focal = "China"
+highlight = ["Vietnam", "Mexico"]
+
+[comparison]
+base_year = 2024
+compare_year = 2025

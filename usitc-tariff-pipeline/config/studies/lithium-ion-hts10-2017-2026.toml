@@ -1,0 +1,22 @@
+# HTS10 drill-down of lithium-ion v1: EV batteries (.10) versus the rest
+# (.20 until the 2026 split, then .30 housed storage systems and .90 other).
+#
+# Same periods, origins and comparison as lithium-ion-2017-2026, so the HTS10
+# lines add up to the HTS6 totals of that study.
+
+[study]
+study_id = "lithium-ion-hts10-2017-2026"
+title = "Lithium-ion batteries by HTS10 line: which kind did China lose?"
+scope_manifest = "scopes/lithium-ion/v2/manifest.json"
+
+[periods]
+annual = { start = 2017, end = 2025 }
+monthly = { start = 2017, end = 2026 }
+
+[origins]
+focal = "China"
+highlight = ["South Korea", "Japan", "Vietnam"]
+
+[comparison]
+base_year = 2024
+compare_year = 2025

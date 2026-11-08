@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "artifact_type": "scope_approval_card",
+  "created_at_utc": "2026-11-06T17:02:05.036199+00:00",
+  "scope_path": "reviewed.csv",
+  "scope_file_sha256": "eeabd1fdb4c2fee8d01001e8f0c134f3fff5d0c101ad59fc17138ed278b8d00d",
+  "scope_sha256": "189d344517ca8cf7e27e8e8b2a6306db08eb785ccb00fc5263a4d47e6472c359",
+  "record_sha256": "c25294b1d806404302385ef126b28b2bc45b3d867f75a586511c27b64a2ac015",
+  "scope_id": "laptops",
+  "scope_version": "2",
+  "product_id": "portable-computers",
+  "product_name": "Portable computers (laptops and tablets)",
+  "hts_level": 6,
+  "hts_releases": [
+    "HTS current edition (reviewer to confirm)"
+  ],
+  "included_codes": [
+    "847130"
+  ],
+  "excluded_codes": [
+    "847141",
+    "847330"
+  ],
+  "coverage": {
+    "start": "2017-01-01",
+    "end": "2026-12-31",
+    "gaps": []
+  },
+  "quantity_unit": "no.",
+  "quantity_comparable": true,
+  "second_unit": null,
+  "second_units": [],
+  "continuity": {
+    "status": "unverified",
+    "warning": "连续性未核实: HTS codes were not checked against archived HTS editions for every year"
+  },
+  "approval_effect": "none; the reviewer approves by running scope-approve in their own terminal"
+}

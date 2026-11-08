@@ -1,0 +1,4 @@
+edition,effective_from,effective_to,hts_level,hts_code,description,quantity_unit,source_url,source_file,source_sha256
+2017 Basic (synthetic),2017-01-01,2021-12-31,10,8507600010,Synthetic rechargeable lithium-ion cells and modules,No.,https://hts.usitc.gov/,official-editions.txt,93f7303ade8f6df2325b60f6dfcaa87b216e9fd9a86e71ede08df1ab0a09b9da
+2022 Basic (synthetic),2022-01-01,2025-12-31,10,8507600020,Synthetic rechargeable lithium-ion cells after statistical split,No.,https://hts.usitc.gov/,official-editions.txt,93f7303ade8f6df2325b60f6dfcaa87b216e9fd9a86e71ede08df1ab0a09b9da
+2022 Basic (synthetic),2022-01-01,2025-12-31,10,8507600030,Synthetic rechargeable lithium-ion modules after statistical split,kg,https://hts.usitc.gov/,official-editions.txt,93f7303ade8f6df2325b60f6dfcaa87b216e9fd9a86e71ede08df1ab0a09b9da

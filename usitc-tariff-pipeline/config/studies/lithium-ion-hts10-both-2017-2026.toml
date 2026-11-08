@@ -1,0 +1,44 @@
+# Lithium-ion batteries (scope lithium-ion v2, HTS10): the 2026-11-07 sample
+# study for the new brief.  Same scope, periods and comparison as the HTS10
+# studies; kg sits beside the count ("both"), EV and non-EV lines are joined
+# into two segments (the non-EV line .20 split into .30 and .90 in 2026), and
+# the tariff timeline is shown on charts 03 and 09.
+
+[study]
+study_id = "lithium-ion-hts10-both-2017-2026"
+title = "Lithium-ion batteries: U.S. import sources, duty and weight (EV and non-EV)"
+scope_manifest = "scopes/lithium-ion/v2/manifest.json"
+
+[periods]
+annual = { start = 2017, end = 2025 }
+monthly = { start = 2017, end = 2026 }
+
+[origins]
+focal = "China"
+highlight = ["South Korea", "Japan", "Vietnam", "Thailand"]
+
+[comparison]
+base_year = 2024
+compare_year = 2025
+
+[quantity]
+unit = "both"
+
+[timeline]
+file = "config/tariff_timelines/lithium-ion.csv"
+country = "config/tariff_timelines/_country.csv"
+
+[brief]
+focal_split = true
+
+[[segments]]
+label = "EV"
+codes = ["8507600010"]
+
+[[segments]]
+label = "Non-EV"
+codes = ["8507600020", "8507600030", "8507600090"]
+
+# Drill-down menu: the current HTS structure (cached REST search, hash in SOURCES.md).
+[drilldown]
+structure = "scopes/lithium-ion/v2/history/hts_rest_search_8507.60.json"

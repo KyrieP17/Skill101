@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "artifact_type": "hts_current_release_check",
+  "checked_at_utc": "2026-11-08T08:45:58.171916+00:00",
+  "as_of": "2026-11-08",
+  "scope_path": "<project_root>\\scopes\\smartphones\\v1\\scope.csv",
+  "scope_file_sha256": "0ac6d5a7cb173951feed7a92d59bccb507b412aab3718b10973ecec4f0d2f82c",
+  "endpoint": "https://hts.usitc.gov/reststop/search",
+  "ok": true,
+  "checked": [
+    {
+      "hts_code": "851713",
+      "hts_level": 6,
+      "valid_from": "2022-01-01",
+      "valid_to": "2026-12-31",
+      "scope_description": "Smartphones",
+      "scope_quantity_unit": "No.",
+      "scope_second_unit": "",
+      "search_url": "https://hts.usitc.gov/reststop/search?keyword=8517.13",
+      "current_line": {
+        "htsno": "8517.13.00.00",
+        "description": "Smartphones"
+      },
+      "current_children": [
+        {
+          "htsno": "8517.13.00.00",
+          "description": "Smartphones",
+          "units": "No."
+        }
+      ],
+      "findings": []
+    }
+  ],
+  "not_valid_on_as_of": [],
+  "note": "Current release only: not historical evidence and not approval.",
+  "dataweb_token_used": false
+}

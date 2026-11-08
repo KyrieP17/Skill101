@@ -1,0 +1,76 @@
+# Study template: copy to <project>/config/studies/<study_id>.toml and edit.
+# Fields, defaults and validation rules: references/study-design.md.
+#
+# Only [periods] changes which DataWeb queries run.  Everything else is an
+# analysis setting with a default: fill it in, show it to the user, and let
+# them change it at any time.  Every query already returns all origins plus an
+# independent World total, so those changes need no new plan or download.
+
+[study]
+study_id = "example-product-2017-2025"      # lowercase slug, unique per study
+title = "One-sentence research question"
+scope_manifest = "scopes/example-product/v1/manifest.json"   # frozen, approved scope
+
+[periods]
+# Default: the longest window the approved scope covers, up to the last
+# complete year.  Add monthly only when the question needs event timing.
+annual = { start = 2017, end = 2025 }
+monthly = { start = 2023, end = 2026 }
+
+[origins]
+focal = "China"            # default unless the question is about another origin
+highlight = []             # at most 6: the user's list, or the largest origins once data is in
+
+[comparison]
+# Two complete years inside periods.annual; remove the table to skip.
+base_year = 2024
+compare_year = 2025
+
+# One table per window, YYYY-MM, inside periods.monthly.
+[[event_windows]]
+id = "baseline"
+label = "Before the policy change"
+start = "2024-11"
+end = "2025-01"
+
+[events]
+ids = []                   # event_id values from config/policy_events.csv
+
+# --- Optional features: each is off when its table is left out. -------------
+
+# Tariff timeline (one file per scope, plus the shared per-origin layer).
+# Rows enter study_sha256 only; the agent writes review_status = "draft".
+[timeline]
+file = "config/tariff_timelines/example-product.csv"
+country = "config/tariff_timelines/_country.csv"
+
+# Default for a new study: the three-row table (focal / other / total) with
+# calculated duty in USD, used by the brief's key numbers.
+[brief]
+focal_split = true
+
+# When the scope records a second_unit (e.g. kg), default to "both": the first
+# unit stays in the main columns and the second unit sits beside it.  Remove
+# the table when the scope has no second unit.
+[quantity]
+unit = "both"
+
+# Segments join codes into one series, e.g. HTS10 lines split mid-study.
+# Codes must be included in the scope and may appear in one segment only.
+# [[segments]]
+# label = "Segment A"
+# codes = ["0000000010"]
+
+# Drill-down menu (HTS8 / HTS10 verdicts from the product and its rates only):
+# the HTS REST search for the scope's HTS6, saved unchanged in the scope's
+# history/ by hts_scope_resolver.py --keyword 0000.00 --structure-output <this
+# path>, which prints the URL, bytes and SHA-256 to record in SOURCES.md.
+[drilldown]
+structure = "scopes/example-product/v1/history/hts_rest_search_0000.00.json"
+
+# HTS4 context map (extra queries outside the scope: the user approves them
+# separately; acquire never fetches them).  hts6 lists every HTS6 line of the
+# scope's headings, taken from the HTS structure.
+# [context]
+# hts4 = true
+# hts6 = ["000010", "000020"]

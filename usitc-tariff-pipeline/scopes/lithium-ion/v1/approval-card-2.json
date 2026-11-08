@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "artifact_type": "scope_approval_card",
+  "created_at_utc": "2026-11-06T16:50:13.910336+00:00",
+  "scope_path": "reviewed.csv",
+  "scope_file_sha256": "88e436c1ca63ba7f59377da7a4acda0c447f60a2a0a945a4cf129c9d02b4f073",
+  "scope_sha256": "f15bccfce8872b029576d5da026b5e1fd3c0cb1526f552d0382ed73c9dac3751",
+  "record_sha256": "c6779876a2eb13c39196282efd9fa8f9f86ea8492a14ff71018e669268a9ceaa",
+  "scope_id": "lithium-ion",
+  "scope_version": "1",
+  "product_id": "lithium-ion-batteries",
+  "product_name": "Lithium-ion batteries (rechargeable)",
+  "hts_level": 6,
+  "hts_releases": [
+    "HTS current edition, retrieved 2026-11-06 (reviewer to confirm)"
+  ],
+  "included_codes": [
+    "850760"
+  ],
+  "excluded_codes": [
+    "850650",
+    "850790"
+  ],
+  "coverage": {
+    "start": "2017-01-01",
+    "end": "2026-12-31",
+    "gaps": []
+  },
+  "quantity_unit": "no.",
+  "quantity_comparable": true,
+  "second_unit": "kg",
+  "second_units": [
+    "kg"
+  ],
+  "continuity": {
+    "status": "unverified",
+    "warning": "连续性未核实: HTS codes were not checked against archived HTS editions for every year"
+  },
+  "approval_effect": "none; the reviewer approves by running scope-approve in their own terminal"
+}

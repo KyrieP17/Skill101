@@ -1,0 +1,7 @@
+date,date_type,measure,rate_change,applies_to,origins,source,source_url,review_status,notes
+2017-01-01,effective,MFN general rate (8507.60.00),3.4%,85076000,,HTS 档案第 85 章（2017、2022、2024、2025、2026 各版）；现行 HTS REST 查询,https://hts.usitc.gov/reststop/search?keyword=8507.60,draft,基本税率；2018–2021 和 2023 年版本没查（D-015）
+2019-09-01,effective,Section 301 List 4A (9903.88.15),+15%,85076000,China,用户线索（凭记忆）；HTS 2025 Rev32 第 99 章注释 20(s) 只证明 8507.60.00 在 List 4A 里,,draft,生效日和 15% 待核对（Federal Register 没查）
+2020-02-14,effective,Section 301 List 4A rate cut (9903.88.15),15% -> 7.5%,85076000,China,用户线索（凭记忆）；HTS 2025 Rev32 第 99 章注释 20(r) 证明税率是 7.5%,,draft,7.5% 有 HTS 出处；生效日待核对
+2024-05-14,announced,Section 301 four-year review: increases announced,,85076000,China,用户线索（凭记忆）,,draft,宣布日待核对
+2024-09-27,effective,Section 301 (9903.91.01): EV lithium-ion batteries,7.5% -> 25%,8507600010,China,HTS 档案 2025 Rev32 第 99 章 美国注释 31(b)(4)；注释 20(s)(6) 把 .0010 排除在 9903.88.15 之外,https://hts.usitc.gov/reststop/file?release=2025HTSRev32&filename=Chapter%2099,draft,生效日和覆盖范围出自 HTS；25% 出自用户线索（HTS 表格行没抽出来）；注释引 89 Fed. Reg. 76581
+2026-01-01,effective,Section 301 (9903.91.06): lithium-ion batteries (HTS8 8507.60.00),non-EV 7.5% -> 25%,85076000,China,HTS 档案 2026 Rev22 第 99 章 美国注释 31(g)(5),https://hts.usitc.gov/reststop/file?release=2026HTSRev22&filename=Chapter%2099,draft,注释 31(g) 按 HTS8 列出 8507.60.00；车用 .0010 自 2024-09-27 起已在 9903.91.01；25% 出自用户线索

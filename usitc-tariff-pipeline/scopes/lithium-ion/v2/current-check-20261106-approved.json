@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "artifact_type": "hts_current_release_check",
+  "checked_at_utc": "2026-11-06T18:46:14.021726+00:00",
+  "as_of": "2026-11-06",
+  "scope_path": "<project_root>\\scopes\\lithium-ion\\v2\\scope.csv",
+  "scope_file_sha256": "3fb2cd92f0d1b71c5d6fc426bbdfb0226c0b680743cc526649059205112eccd5",
+  "endpoint": "https://hts.usitc.gov/reststop/search",
+  "ok": true,
+  "checked": [
+    {
+      "hts_code": "8507600010",
+      "hts_level": 10,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "scope_description": "Of a kind used as the primary source of electrical power for electrically powered vehicles of subheadings 8703.40, 8703.50, 8703.60, 8703.70 or 8703.80",
+      "scope_quantity_unit": "No.",
+      "scope_second_unit": "kg",
+      "search_url": "https://hts.usitc.gov/reststop/search?keyword=8507.60.00.10",
+      "current_line": {
+        "htsno": "8507.60.00.10",
+        "description": "Of a kind used as the primary source of electrical power for electrically powered vehicles of subheadings 8703.40, 8703.50, 8703.60, 8703.70 or 8703.80"
+      },
+      "current_children": [
+        {
+          "htsno": "8507.60.00.10",
+          "description": "Of a kind used as the primary source of electrical power for electrically powered vehicles of subheadings 8703.40, 8703.50, 8703.60, 8703.70 or 8703.80",
+          "units": "No. | kg"
+        }
+      ],
+      "findings": []
+    },
+    {
+      "hts_code": "8507600030",
+      "hts_level": 10,
+      "valid_from": "2026-01-16",
+      "valid_to": "2026-12-31",
+      "scope_description": "Battery energy storage systems fully encased within a housing, as described in statistical note 2 to this chapter",
+      "scope_quantity_unit": "No.",
+      "scope_second_unit": "kg",
+      "search_url": "https://hts.usitc.gov/reststop/search?keyword=8507.60.00.30",
+      "current_line": {
+        "htsno": "8507.60.00.30",
+        "description": "Battery energy storage systems fully encased within a housing, as described in statistical note 2 to this chapter"
+      },
+      "current_children": [
+        {
+          "htsno": "8507.60.00.30",
+          "description": "Battery energy storage systems fully encased within a housing, as described in statistical note 2 to this chapter",
+          "units": "No. | kg"
+        }
+      ],
+      "findings": []
+    },
+    {
+      "hts_code": "8507600090",
+      "hts_level": 10,
+      "valid_from": "2026-01-16",
+      "valid_to": "2026-12-31",
+      "scope_description": "Other",
+      "scope_quantity_unit": "No.",
+      "scope_second_unit": "kg",
+      "search_url": "https://hts.usitc.gov/reststop/search?keyword=8507.60.00.90",
+      "current_line": {
+        "htsno": "8507.60.00.90",
+        "description": "Other"
+      },
+      "current_children": [
+        {
+          "htsno": "8507.60.00.90",
+          "description": "Other",
+          "units": "No. | kg"
+        }
+      ],
+      "findings": []
+    }
+  ],
+  "not_valid_on_as_of": [
+    {
+      "hts_code": "8507600020",
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-04-07"
+    }
+  ],
+  "note": "Current release only: not historical evidence and not approval.",
+  "dataweb_token_used": false
+}

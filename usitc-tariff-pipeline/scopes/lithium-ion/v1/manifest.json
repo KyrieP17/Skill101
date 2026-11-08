@@ -1,0 +1,85 @@
+{
+  "schema_version": 4,
+  "created_at_utc": "2026-11-06T17:44:06.911306+00:00",
+  "source_scope": "scope.csv",
+  "source_file_sha256": "49cb10084f10e121972cfb5718f7d45db8efaf8c353cc10bbc22d2d2093898ec",
+  "validation": {
+    "ok": true,
+    "require_approved": true
+  },
+  "scope_id": "lithium-ion",
+  "scope_version": "1",
+  "product_id": "lithium-ion-batteries",
+  "product_name": "Lithium-ion batteries (rechargeable)",
+  "hts_level": 6,
+  "hts_releases": [
+    "HTS current edition, retrieved 2026-11-06 (reviewer to confirm)"
+  ],
+  "included": [
+    {
+      "hts_code": "850760",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "second_unit": "kg",
+      "hts_release": "HTS current edition, retrieved 2026-11-06 (reviewer to confirm)"
+    }
+  ],
+  "excluded": [
+    {
+      "hts_code": "850650",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "HTS current edition, retrieved 2026-11-06 (reviewer to confirm)"
+    },
+    {
+      "hts_code": "850790",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "HTS current edition, retrieved 2026-11-06 (reviewer to confirm)"
+    }
+  ],
+  "included_codes": [
+    "850760"
+  ],
+  "excluded_codes": [
+    "850650",
+    "850790"
+  ],
+  "coverage": {
+    "start": "2017-01-01",
+    "end": "2026-12-31",
+    "gaps": []
+  },
+  "quantity_unit": "no.",
+  "quantity_comparable": true,
+  "second_unit": "kg",
+  "second_units": [
+    "kg"
+  ],
+  "record_count": 3,
+  "all_records_approved": true,
+  "scope_sha256": "f15bccfce8872b029576d5da026b5e1fd3c0cb1526f552d0382ed73c9dac3751",
+  "record_sha256": "d4bcf6123f845c18a8b7c7eaea7fd910889e57bfebe4866d42d96ac8c5f8677f",
+  "approval": {
+    "method": "interactive_terminal_confirmation",
+    "procedural_boundary": "typed_confirmation_not_cryptographically_authenticated",
+    "verified_claim": "the scope_sha256 prefix was typed at an interactive terminal after the card was shown",
+    "not_verified": "reviewer identity and authority are not cryptographically authenticated",
+    "approval_card_path": "approval-card-2.json",
+    "approval_card_sha256": "cffd7003872c9560afe3a31a5eb087191d5d093e7c2285db5f0c22787734f4e6",
+    "reviewer": "Guanqi Pan",
+    "approved_at_utc": "2026-11-06T17:44:06.908050+00:00"
+  },
+  "hts_history": {
+    "status": "unverified",
+    "warning": "连续性未核实: HTS codes were not checked against archived HTS editions for every year",
+    "continuity_verified": false,
+    "acknowledged_unverified": true
+  }
+}

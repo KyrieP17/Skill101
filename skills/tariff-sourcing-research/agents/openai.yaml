@@ -1,0 +1,9 @@
+interface:
+  display_name: "Tariff Sourcing Research"
+  short_description: "Resolve HTS scope and run validated USITC research"
+  brand_color: "#1F4E79"
+  default_prompt: "Use $tariff-sourcing-research to resolve the product's HTS scope and analyze its U.S. sourcing path with validated DataWeb evidence."
+
+policy:
+  allow_implicit_invocation: true
+

@@ -1,0 +1,12 @@
+date,date_type,measure,rate_change,applies_to,origins,source,source_url,review_status,notes
+2025-02-04,effective,IEEPA fentanyl duty (9903.01.20),+10%,,China; Hong Kong,HTS 档案 2026 Rev22 第 99 章 美国注释 2(s),https://hts.usitc.gov/reststop/file?release=2026HTSRev22&filename=Chapter%2099,draft,注释 2(s)：9903.01.20 适用于 2025-02-04 起、2025-03-04 前入境的货物；10% 出自用户线索
+2025-03-04,effective,IEEPA fentanyl duty raised (9903.01.24),+10% -> +20%,,China; Hong Kong,HTS 档案 2026 Rev22 第 99 章 美国注释 2(s)（9903.01.20 截至 2025-03-04）,https://hts.usitc.gov/reststop/file?release=2026HTSRev22&filename=Chapter%2099,draft,20% 出自用户线索
+2025-03-07,effective,IEEPA duties waived for USMCA-qualifying goods,,,Canada; Mexico,用户线索（凭记忆）,,draft,待核对
+2025-04-05,effective,IEEPA reciprocal baseline duty (9903.01.25),+10%,,All origins (exceptions apply),用户线索（凭记忆）,,draft,生效日、税率和例外待核对
+2025-04-09,effective,IEEPA reciprocal duty on China raised,to 84%,,China,用户线索（凭记忆）,,draft,待核对
+2025-04-10,effective,IEEPA reciprocal duty on China raised,to 125%,,China,用户线索（凭记忆）,,draft,待核对
+2025-05-14,effective,IEEPA reciprocal duty on China cut,to 10%,,China,用户线索（凭记忆）,,draft,待核对
+2025-08-07,effective,IEEPA reciprocal: country-specific rates (9903.02.02-9903.02.73),country-specific,,All origins except China,HTS 档案 2026 Rev22 第 99 章 美国注释 2(v)(xviii) 编者注：9903.01.43–.62、.64–.76 自 2025-08-07 终止，改见 9903.02.02–.73,https://hts.usitc.gov/reststop/file?release=2026HTSRev22&filename=Chapter%2099,draft,各国税率没抽；9903.01.63（China）暂停
+2025-11-10,effective,IEEPA fentanyl duty cut (9903.01.24),+20% -> +10%,,China; Hong Kong,HTS 档案 2026 Rev22 第 99 章 美国注释 2(u),https://hts.usitc.gov/reststop/file?release=2026HTSRev22&filename=Chapter%2099,draft,10% 出自用户线索
+2026-02-20,effective,Global tariff adjustment (config/policy_events.csv),,,All origins,config/policy_events.csv 里的 global_tariff_adjustment（没写来源）,,draft,内容待核对
+2026-07-23,effective,Surcharge on all origins (9903.03.01) expired,surcharge ends,,All origins,HTS 档案 2026 Rev22 第 99 章 美国注释 2(aa) 编者注；91 Fed. Reg. 9339,https://hts.usitc.gov/reststop/file?release=2026HTSRev22&filename=Chapter%2099,draft,9903.03.01 对所有国家的货物加征；法律依据、开始日期和税率待核对

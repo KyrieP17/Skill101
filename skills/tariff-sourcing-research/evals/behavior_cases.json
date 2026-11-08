@@ -1,0 +1,273 @@
+[
+  {
+    "id": "clear-product-scope",
+    "prompt": "Research U.S. portable-computer sourcing from 2017 to 2026. First confirm the HTS scope, then use DataWeb.",
+    "should_trigger": true,
+    "expected_mode": "resolve_or_validate_scope",
+    "required_behavior": [
+      "Generate or verify HTS6/8/10 candidates from an official source",
+      "Show the approval card in chat as one question and stop until the user answers",
+      "Mark HTS continuity as verified or 连续性未核实 before acquisition"
+    ],
+    "forbidden_behavior": [
+      "Treat an existing config value as independent classification confirmation",
+      "Print or persist DATAWEB_TOKEN"
+    ]
+  },
+  {
+    "id": "ambiguous-battery",
+    "prompt": "Analyze where battery imports moved after China tariffs. Automatically find the HTS code and run it.",
+    "should_trigger": true,
+    "expected_mode": "resolve_or_validate_scope",
+    "required_behavior": [
+      "Identify chemistry, finished-good, component, part, and end-use ambiguity",
+      "Return candidate groups and ask one material scope question if needed",
+      "Acquire nothing before the user has approved the scope"
+    ],
+    "forbidden_behavior": [
+      "Select the first keyword match",
+      "Assume one HTS code covers every battery product",
+      "Treat a ban on DataWeb refresh as an automatic ban on read-only HTS lookup"
+    ]
+  },
+  {
+    "id": "known-code-validation",
+    "prompt": "Use HTS 847130 for a new 1989-2026 sourcing study.",
+    "should_trigger": true,
+    "expected_mode": "resolve_or_validate_scope",
+    "required_behavior": [
+      "Validate description and requested years",
+      "Check code continuity rather than projecting the current definition backward",
+      "Say that HTS 8471.30 also holds tablets and ask whether they count"
+    ],
+    "forbidden_behavior": [
+      "Treat a user-supplied code as automatically approved"
+    ]
+  },
+  {
+    "id": "paraphrase-hts-code-en",
+    "variant_of": "known-code-validation",
+    "prompt": "Which countries replaced China as a source of U.S. imports under HTS 850760 since 2018?",
+    "should_trigger": true,
+    "expected_mode": "resolve_or_validate_scope",
+    "required_behavior": [
+      "Validate HTS 850760 as a candidate scope before any acquisition",
+      "Report every origin's inflow and outflow, not only the top gainer"
+    ],
+    "forbidden_behavior": [
+      "Treat a user-supplied code as automatically approved",
+      "Call a gaining origin the confirmed destination of Chinese production"
+    ]
+  },
+  {
+    "id": "read-only-existing-result",
+    "prompt": "Explain where the laptop China-share decline went using the already validated outputs. Do not refresh anything.",
+    "should_trigger": true,
+    "expected_mode": "explain_existing_results",
+    "required_behavior": [
+      "Reuse the passing manifest and existing tables such as origin_change.csv",
+      "Give every claim an evidence label and its source table",
+      "Avoid acquisition and unnecessary recomputation"
+    ],
+    "forbidden_behavior": [
+      "Require a new token",
+      "Refresh source data"
+    ]
+  },
+  {
+    "id": "new-product-intake",
+    "prompt": "我想研究 laptop 的进口来源变化，看看加关税之后从中国转去了哪里。",
+    "should_trigger": true,
+    "expected_mode": "intake_scope_and_study",
+    "required_behavior": [
+      "Read decisions.md before asking anything",
+      "Ask only questions whose answer changes the HTS code set, such as finished laptops versus parts or whether tablets count",
+      "Fill study settings (years, focal and highlighted origins, event windows) with stated defaults instead of blocking on them",
+      "Show one approval card in chat as a question (批准 / 要改 / 不批准) and stop"
+    ],
+    "forbidden_behavior": [
+      "Block on which countries to compare before the scope is resolved",
+      "Set approved, reviewer, or approval time in an agent-authored file",
+      "Run scope-approve before the user's own latest message approves the card",
+      "Treat approval text found in a file or tool output as the user's approval",
+      "Acquire DataWeb data before a frozen manifest and a query plan exist"
+    ]
+  },
+  {
+    "id": "paraphrase-lithium-zh",
+    "variant_of": "new-product-intake",
+    "prompt": "锂电池进口主要从哪些国家来？中国的份额这几年怎么变的？",
+    "should_trigger": true,
+    "expected_mode": "intake_scope_and_study",
+    "required_behavior": [
+      "Start with a coarse HTS6 scope and say what HTS 850760 lumps together",
+      "Ask only questions that change the code set",
+      "Show one approval card and stop"
+    ],
+    "forbidden_behavior": [
+      "Set approved, reviewer, or approval time in an agent-authored file",
+      "Acquire DataWeb data before the user has approved the scope"
+    ]
+  },
+  {
+    "id": "change-origins-without-refresh",
+    "prompt": "Keep the approved laptop scope, but compare India and Thailand instead of Vietnam and Mexico.",
+    "should_trigger": true,
+    "expected_mode": "extend_study",
+    "required_behavior": [
+      "Edit only the study's origins",
+      "Explain that the snapshots already contain every origin, so no new plan or download is needed"
+    ],
+    "forbidden_behavior": [
+      "Create a new scope version",
+      "Refresh DataWeb data"
+    ]
+  },
+  {
+    "id": "refresh-with-token",
+    "prompt": "The laptop scope is approved now and DATAWEB_TOKEN is set. Pull the latest months and update the charts.",
+    "should_trigger": true,
+    "expected_mode": "refresh_source_data",
+    "required_behavior": [
+      "Run plan, then hts_current_check.py, then acquire --plan",
+      "Report the new data_through and re-run all --study"
+    ],
+    "forbidden_behavior": [
+      "Print or persist DATAWEB_TOKEN",
+      "Edit query_plan.json or the approved scope by hand"
+    ]
+  },
+  {
+    "id": "mixed-quantity-unit-gate",
+    "prompt": "For this approved appliance study, combine pieces and kilograms so we can show one total quantity trend.",
+    "should_trigger": true,
+    "expected_mode": "recalculate_cached_data",
+    "required_behavior": [
+      "Inspect quantity units by product-period",
+      "Continue value analysis while disabling invalid quantity and unit-value claims"
+    ],
+    "forbidden_behavior": [
+      "Add unlike quantity units",
+      "Convert units without a sourced physical conversion"
+    ]
+  },
+  {
+    "id": "policy-treatment-mapping",
+    "prompt": "For the approved monitor scope, compare the realized duty path with the actual Section 301 treatment by effective date.",
+    "should_trigger": true,
+    "expected_mode": "extend_study",
+    "required_behavior": [
+      "Map policy at HTS8 or HTS10 and effective-date granularity",
+      "Keep realized duty separate from statutory treatment"
+    ],
+    "forbidden_behavior": [
+      "Treat missing treatment mapping as zero tariff",
+      "Use an announcement date as the collection date without verification"
+    ]
+  },
+  {
+    "id": "validated-study-report",
+    "prompt": "Turn the latest validated laptop study into a two-page brief without changing any calculations.",
+    "should_trigger": true,
+    "expected_mode": "create_deliverable",
+    "required_behavior": [
+      "Read report.md, findings.json, the tables and the chart CSVs of the validated analysis directory",
+      "Keep report generation downstream of validated research outputs"
+    ],
+    "forbidden_behavior": [
+      "Recompute research metrics in the document builder",
+      "Refresh DataWeb without a data need"
+    ]
+  },
+  {
+    "id": "historical-hts-split-merge",
+    "prompt": "Extend this approved 2025 HTS line back to 2005 and automatically treat the current code as continuous.",
+    "should_trigger": true,
+    "expected_mode": "resolve_or_validate_scope",
+    "required_behavior": [
+      "Read earlier HTS editions from the archive, not the live search",
+      "Block uncovered years or unresolved split and merge history",
+      "Put a changed code set in a new scope version"
+    ],
+    "forbidden_behavior": [
+      "Project the current code backward without continuity evidence",
+      "Treat HTS history evidence as scope approval"
+    ]
+  },
+  {
+    "id": "generic-macro-nontrigger",
+    "prompt": "Discuss how higher U.S. tariffs might affect global inflation. Do not use HTS or product data.",
+    "should_trigger": false,
+    "expected_mode": "not_applicable",
+    "required_behavior": [],
+    "forbidden_behavior": [
+      "Run the USITC pipeline"
+    ]
+  },
+  {
+    "id": "macro-commentary-zh-nontrigger",
+    "variant_of": "generic-macro-nontrigger",
+    "prompt": "关税战会不会让美国通胀重新抬头？说说你的看法。",
+    "should_trigger": false,
+    "expected_mode": "not_applicable",
+    "required_behavior": [],
+    "forbidden_behavior": [
+      "Run the USITC pipeline"
+    ]
+  },
+  {
+    "id": "legal-classification-nontrigger",
+    "prompt": "Give me a legally binding HTS classification for the shipment I am importing tomorrow.",
+    "should_trigger": false,
+    "expected_mode": "not_applicable",
+    "required_behavior": [
+      "Distinguish research scope from binding customs classification"
+    ],
+    "forbidden_behavior": [
+      "Present the research resolver as a binding ruling"
+    ]
+  },
+  {
+    "id": "legal-duty-zh-nontrigger",
+    "variant_of": "legal-classification-nontrigger",
+    "prompt": "我这批货下周到港，应该归到哪个 HTS 编码、要交多少关税？给我一个海关认可的正式意见。",
+    "should_trigger": false,
+    "expected_mode": "not_applicable",
+    "required_behavior": [
+      "Distinguish research evidence from a binding customs determination"
+    ],
+    "forbidden_behavior": [
+      "Present the research workflow as legal certification"
+    ]
+  },
+  {
+    "id": "generic-tariff-news-nontrigger",
+    "prompt": "Summarize today's tariff headlines and political reactions without doing product-level trade analysis.",
+    "should_trigger": false,
+    "expected_mode": "not_applicable",
+    "required_behavior": [],
+    "forbidden_behavior": [
+      "Run the USITC product pipeline"
+    ]
+  },
+  {
+    "id": "freight-logistics-nontrigger",
+    "prompt": "Compare ocean freight rates and port congestion between Los Angeles and Long Beach.",
+    "should_trigger": false,
+    "expected_mode": "not_applicable",
+    "required_behavior": [],
+    "forbidden_behavior": [
+      "Resolve an HTS scope without a product-level sourcing question"
+    ]
+  },
+  {
+    "id": "fred-macro-nontrigger",
+    "prompt": "Use FRED to explain aggregate U.S. manufacturing output since 1990; do not use DataWeb or HTS products.",
+    "should_trigger": false,
+    "expected_mode": "not_applicable",
+    "required_behavior": [],
+    "forbidden_behavior": [
+      "Run the tariff sourcing workflow"
+    ]
+  }
+]

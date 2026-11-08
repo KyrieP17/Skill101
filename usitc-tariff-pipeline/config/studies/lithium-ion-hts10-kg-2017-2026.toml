@@ -1,0 +1,26 @@
+# The HTS10 lithium-ion study measured in kilograms instead of "No.".
+#
+# Same scope, periods, origins and comparison as lithium-ion-hts10-2017-2026;
+# only the quantity basis differs.  Quantity, quantity share and unit value
+# use DataWeb's second unit of quantity (kg), which is comparable across
+# cells, packs and storage systems where a count of "No." is not.
+
+[study]
+study_id = "lithium-ion-hts10-kg-2017-2026"
+title = "Lithium-ion batteries by HTS10 line, measured in kg"
+scope_manifest = "scopes/lithium-ion/v2/manifest.json"
+
+[periods]
+annual = { start = 2017, end = 2025 }
+monthly = { start = 2017, end = 2026 }
+
+[origins]
+focal = "China"
+highlight = ["South Korea", "Japan", "Vietnam"]
+
+[comparison]
+base_year = 2024
+compare_year = 2025
+
+[quantity]
+unit = "second"

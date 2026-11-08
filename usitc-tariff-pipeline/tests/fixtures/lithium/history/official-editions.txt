@@ -1,0 +1,2 @@
+Synthetic test-only HTS edition evidence for rechargeable lithium-ion cells and modules.
+These HTS-like codes are fixtures and are not customs-classification evidence.

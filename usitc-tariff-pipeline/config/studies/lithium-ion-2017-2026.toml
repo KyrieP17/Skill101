@@ -1,0 +1,24 @@
+# Coarse first-pass study: China's share of U.S. lithium-ion battery imports,
+# HTS6 850760, 2017-2026.
+#
+# Only [periods] decides which DataWeb queries the plan contains.  Origins,
+# comparison years and event windows are analysis settings and can change
+# without a new download.  Event windows and policy events are left out until
+# the lithium-ion tariff timeline is checked against official sources.
+
+[study]
+study_id = "lithium-ion-2017-2026"
+title = "Where did China's U.S. lithium-ion battery import share go?"
+scope_manifest = "scopes/lithium-ion/v1/manifest.json"
+
+[periods]
+annual = { start = 2017, end = 2025 }
+monthly = { start = 2017, end = 2026 }
+
+[origins]
+focal = "China"
+highlight = ["South Korea", "Japan", "Vietnam"]
+
+[comparison]
+base_year = 2024
+compare_year = 2025

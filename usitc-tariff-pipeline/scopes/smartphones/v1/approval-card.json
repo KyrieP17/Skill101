@@ -1,0 +1,42 @@
+{
+  "schema_version": 2,
+  "artifact_type": "scope_approval_card",
+  "created_at_utc": "2026-11-08T00:35:43.363005+00:00",
+  "scope_path": "reviewed.csv",
+  "scope_file_sha256": "54dfb714692997319495bb4c8d0b12d04a807bc769a27f443a396c249afe3e5e",
+  "scope_sha256": "54a10caee689c6027a96c7331e578332cb3fb197443a793acabd65b0d1a74730",
+  "record_sha256": "4cad40112484a0b96c2d6d1c406cbae95246887bb62c3b227c994464c7164330",
+  "scope_id": "smartphones",
+  "scope_version": "1",
+  "product_id": "smartphones",
+  "product_name": "Smartphones",
+  "hts_level": 6,
+  "hts_releases": [
+    "2026HTSRev22"
+  ],
+  "included_codes": [
+    "851713"
+  ],
+  "excluded_codes": [
+    "851711",
+    "851714",
+    "851718",
+    "851762",
+    "851771",
+    "851779"
+  ],
+  "coverage": {
+    "start": "2022-01-01",
+    "end": "2026-12-31",
+    "gaps": []
+  },
+  "quantity_unit": "no.",
+  "quantity_comparable": true,
+  "second_unit": null,
+  "second_units": [],
+  "continuity": {
+    "status": "unverified",
+    "warning": "连续性未核实: HTS codes were not checked against archived HTS editions for every year"
+  },
+  "approval_effect": "none; the reviewer approves by running scope-approve in their own terminal"
+}

@@ -1,0 +1,45 @@
+# Smartphones (HTS6 851713), first coarse study.  Written from
+# assets/study_template.toml; defaults per references/study-design.md.
+# Plan only after the user has approved scopes/smartphones/v1 with scope-approve.
+
+[study]
+study_id = "smartphones-2022-2026"
+# Neutral title (charts 03 and 09 use it): a review found the earlier
+# "...go from China after the tariff increases?" read as a causal claim.
+title = "U.S. smartphone imports (HTS 8517.13) by origin, 2022-2026"
+scope_manifest = "scopes/smartphones/v1/manifest.json"
+
+[periods]
+# The scope starts 2022-01-01 (HS 2022 created 8517.13); last complete year 2025.
+# Monthly is on because the question needs timing around 2025 and the 2026 YTD.
+annual = { start = 2022, end = 2025 }
+monthly = { start = 2022, end = 2026 }
+
+[origins]
+focal = "China"
+# Largest non-focal origins in 2025 from the first run (analysis-da969f1e13d1,
+# origin_change.csv): each above 0.3% of the 2025 value; the rest are below 0.2%.
+highlight = ["India", "Vietnam", "South Korea", "Indonesia"]
+
+[comparison]
+base_year = 2024
+compare_year = 2025
+
+# No [[event_windows]]: the user named no policy date (default: none).
+
+[events]
+ids = []
+
+[timeline]
+file = "config/tariff_timelines/smartphones.csv"
+country = "config/tariff_timelines/_country.csv"
+
+[brief]
+focal_split = true
+
+# No [quantity] table: 8517.13.00.00 lists only No., so the scope has no second unit.
+
+[drilldown]
+structure = "scopes/smartphones/v1/history/hts_rest_search_8517.13.json"
+
+# [context] hts4 is off: HTS4 map queries need the user's separate approval.

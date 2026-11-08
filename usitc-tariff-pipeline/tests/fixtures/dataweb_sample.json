@@ -1,0 +1,126 @@
+{
+  "dto": {
+    "title": "Synthetic DataWeb fixture for parser tests",
+    "tables": [
+      {
+        "name": "Imports for Consumption: Customs Value (In Actual Dollars)",
+        "tab_name": "Customs Value",
+        "column_groups": [
+          {
+            "name": null,
+            "label": null,
+            "columns": [
+              {"label": "Country"},
+              {"label": "HTS Number"},
+              {"label": "Description"},
+              {"label": "Quantity Description"},
+              {"label": "2025"}
+            ]
+          }
+        ],
+        "row_groups": [
+          {
+            "rowsNew": [
+              {
+                "rowEntries": [
+                  {"value": "China"},
+                  {"value": "847130"},
+                  {"value": "PORTABLE COMPUTERS"},
+                  {"value": "Value for: number"},
+                  {"value": "60,000"}
+                ]
+              },
+              {
+                "rowEntries": [
+                  {"value": "Vietnam"},
+                  {"value": "847130"},
+                  {"value": "PORTABLE COMPUTERS"},
+                  {"value": "Value for: number"},
+                  {"value": "$40,000"}
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Imports for Consumption: First Unit of Quantity (In Actual Units of Quantity)",
+        "tab_name": "First Unit of Quantity",
+        "column_groups": [
+          {
+            "columns": [
+              {"label": "Country"},
+              {"label": "HTS Number"},
+              {"label": "Description"},
+              {"label": "Quantity Description"},
+              {"label": "2025"}
+            ]
+          }
+        ],
+        "row_groups": [
+          {
+            "rowsNew": [
+              {
+                "rowEntries": [
+                  {"value": "China"},
+                  {"value": "847130"},
+                  {"value": "PORTABLE COMPUTERS"},
+                  {"value": "number"},
+                  {"value": "600"}
+                ]
+              },
+              {
+                "rowEntries": [
+                  {"value": "Vietnam"},
+                  {"value": "847130"},
+                  {"value": "PORTABLE COMPUTERS"},
+                  {"value": "number"},
+                  {"value": "400"}
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Imports for Consumption: Calculated Duties (In Actual Dollars)",
+        "tab_name": "Calculated Duties",
+        "column_groups": [
+          {
+            "columns": [
+              {"label": "Country"},
+              {"label": "HTS Number"},
+              {"label": "Description"},
+              {"label": "Quantity Description"},
+              {"label": "2025"}
+            ]
+          }
+        ],
+        "row_groups": [
+          {
+            "rowsNew": [
+              {
+                "rowEntries": [
+                  {"value": "China"},
+                  {"value": "847130"},
+                  {"value": "PORTABLE COMPUTERS"},
+                  {"value": "Value for: number"},
+                  {"value": "6,000"}
+                ]
+              },
+              {
+                "rowEntries": [
+                  {"value": "Vietnam"},
+                  {"value": "847130"},
+                  {"value": "PORTABLE COMPUTERS"},
+                  {"value": "Value for: number"},
+                  {"value": "--"}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

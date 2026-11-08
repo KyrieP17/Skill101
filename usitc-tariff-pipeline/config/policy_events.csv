@@ -1,0 +1,9 @@
+event_date,event_id,event_label,event_type,status,scope,notes
+2018-09-24,section_301_list_3,Section 301 List 3 became effective,tariff,implemented,China-origin covered products,"Initial additional duty rate was 10%; later changes require line-level schedule verification."
+2019-08-20,list_4b_notice,List 4B proposed portable-computer coverage,tariff_threat,announced_not_imposed,China-origin proposed products,"Useful as an expectation event; it was suspended and should not be coded as an implemented duty."
+2020-03-01,covid_context,COVID-19 supply-chain disruption became material,external_shock,context,global,"Context marker rather than a tariff event; no causal effect is assigned by the descriptive pipeline."
+2025-02-04,china_additional_10pp,Additional 10 percentage points on imports from China,tariff,implemented,China-origin imports,"Use the legally effective date and verify product exclusions before line-level attribution."
+2025-03-04,china_additional_10pp_second,Second additional 10 percentage points on imports from China,tariff,implemented,China-origin imports,"Cumulative exposure depends on product treatment and other applicable duties."
+2025-11-10,china_rate_adjustment,China tariff rate adjustment,tariff,implemented,China-origin imports,"Retained as a timeline marker; the exact HTS-line treatment must be joined before product-level claims."
+2026-02-20,global_tariff_adjustment,Global tariff adjustment,tariff,implemented,multiple origins,"Outside the 2025 full-year screen; relevant only to the 2026 partial-year continuation."
+

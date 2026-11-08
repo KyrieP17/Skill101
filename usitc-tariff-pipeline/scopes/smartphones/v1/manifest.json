@@ -1,0 +1,119 @@
+{
+  "schema_version": 4,
+  "created_at_utc": "2026-11-08T08:45:29.694565+00:00",
+  "source_scope": "scope.csv",
+  "source_file_sha256": "0ac6d5a7cb173951feed7a92d59bccb507b412aab3718b10973ecec4f0d2f82c",
+  "validation": {
+    "ok": true,
+    "require_approved": true
+  },
+  "scope_id": "smartphones",
+  "scope_version": "1",
+  "product_id": "smartphones",
+  "product_name": "Smartphones",
+  "hts_level": 6,
+  "hts_releases": [
+    "2026HTSRev22"
+  ],
+  "included": [
+    {
+      "hts_code": "851713",
+      "hts_level": 6,
+      "valid_from": "2022-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "hts_release": "2026HTSRev22"
+    }
+  ],
+  "excluded": [
+    {
+      "hts_code": "851711",
+      "hts_level": 6,
+      "valid_from": "2022-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "851714",
+      "hts_level": 6,
+      "valid_from": "2022-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "851718",
+      "hts_level": 6,
+      "valid_from": "2022-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "851762",
+      "hts_level": 6,
+      "valid_from": "2022-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "851771",
+      "hts_level": 6,
+      "valid_from": "2022-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "851779",
+      "hts_level": 6,
+      "valid_from": "2022-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "hts_release": "2026HTSRev22"
+    }
+  ],
+  "included_codes": [
+    "851713"
+  ],
+  "excluded_codes": [
+    "851711",
+    "851714",
+    "851718",
+    "851762",
+    "851771",
+    "851779"
+  ],
+  "coverage": {
+    "start": "2022-01-01",
+    "end": "2026-12-31",
+    "gaps": []
+  },
+  "quantity_unit": "no.",
+  "quantity_comparable": true,
+  "second_unit": null,
+  "second_units": [],
+  "record_count": 7,
+  "all_records_approved": true,
+  "scope_sha256": "54a10caee689c6027a96c7331e578332cb3fb197443a793acabd65b0d1a74730",
+  "record_sha256": "461e62a5df785909966cbcde006d1a894f3f8375eed2b2f709da7af344bdb535",
+  "approval": {
+    "method": "chat_confirmation",
+    "procedural_boundary": "user_confirmed_in_chat_agent_ran_scope_approve",
+    "verified_claim": "the agent passed the scope_sha256 prefix the card showed and the user's words of approval",
+    "not_verified": "that the user typed these words; the agent ran scope-approve and recorded them as given",
+    "user_confirmation": "批准（连续性未核实）",
+    "approval_card_path": "approval-card.json",
+    "approval_card_sha256": "5031a461ed1b7caf4c81ece0d6795ee28a658dace85c2bbcdb23aebf5555116d",
+    "reviewer": "Kyriepan17",
+    "approved_at_utc": "2026-11-08T08:45:29.692549+00:00"
+  },
+  "hts_history": {
+    "status": "unverified",
+    "warning": "连续性未核实: HTS codes were not checked against archived HTS editions for every year",
+    "continuity_verified": false,
+    "acknowledged_unverified": true
+  }
+}

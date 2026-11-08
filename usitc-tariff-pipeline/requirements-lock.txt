@@ -1,0 +1,9 @@
+# Exact versions used for the verified 2026-11-04 end-to-end run.
+#
+# `pyproject.toml` states the supported package families for normal development;
+# this lock file is the reproducible option when rebuilding the validated run.
+matplotlib==3.10.7
+numpy==2.3.4
+pandas==2.3.3
+requests==2.32.5
+

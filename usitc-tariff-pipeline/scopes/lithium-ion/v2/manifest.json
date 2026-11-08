@@ -1,0 +1,116 @@
+{
+  "schema_version": 4,
+  "created_at_utc": "2026-11-06T18:45:55.180285+00:00",
+  "source_scope": "scope.csv",
+  "source_file_sha256": "3fb2cd92f0d1b71c5d6fc426bbdfb0226c0b680743cc526649059205112eccd5",
+  "validation": {
+    "ok": true,
+    "require_approved": true
+  },
+  "scope_id": "lithium-ion",
+  "scope_version": "2",
+  "product_id": "lithium-ion-batteries",
+  "product_name": "Lithium-ion batteries (rechargeable)",
+  "hts_level": 10,
+  "hts_releases": [
+    "HTS Chapter 85 archive PDFs in history/ (2017, 2022, 2024, 2025, 2026 Basic; 2026 Rev5, Rev10, Rev11); current edition 2026 Rev22 per live search 2026-11-06",
+    "HTS current edition, retrieved 2026-11-06 (reviewer to confirm)"
+  ],
+  "included": [
+    {
+      "hts_code": "8507600010",
+      "hts_level": 10,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "second_unit": "kg",
+      "hts_release": "HTS Chapter 85 archive PDFs in history/ (2017, 2022, 2024, 2025, 2026 Basic; 2026 Rev5, Rev10, Rev11); current edition 2026 Rev22 per live search 2026-11-06"
+    },
+    {
+      "hts_code": "8507600020",
+      "hts_level": 10,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-04-07",
+      "quantity_unit": "no.",
+      "second_unit": "kg",
+      "hts_release": "HTS Chapter 85 archive PDFs in history/ (2017, 2022, 2024, 2025, 2026 Basic; 2026 Rev5, Rev10, Rev11); current edition 2026 Rev22 per live search 2026-11-06"
+    },
+    {
+      "hts_code": "8507600030",
+      "hts_level": 10,
+      "valid_from": "2026-01-16",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "second_unit": "kg",
+      "hts_release": "HTS Chapter 85 archive PDFs in history/ (2017, 2022, 2024, 2025, 2026 Basic; 2026 Rev5, Rev10, Rev11); current edition 2026 Rev22 per live search 2026-11-06"
+    },
+    {
+      "hts_code": "8507600090",
+      "hts_level": 10,
+      "valid_from": "2026-01-16",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "second_unit": "kg",
+      "hts_release": "HTS Chapter 85 archive PDFs in history/ (2017, 2022, 2024, 2025, 2026 Basic; 2026 Rev5, Rev10, Rev11); current edition 2026 Rev22 per live search 2026-11-06"
+    }
+  ],
+  "excluded": [
+    {
+      "hts_code": "850650",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "HTS current edition, retrieved 2026-11-06 (reviewer to confirm)"
+    },
+    {
+      "hts_code": "850790",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "HTS current edition, retrieved 2026-11-06 (reviewer to confirm)"
+    }
+  ],
+  "included_codes": [
+    "8507600010",
+    "8507600020",
+    "8507600030",
+    "8507600090"
+  ],
+  "excluded_codes": [
+    "850650",
+    "850790"
+  ],
+  "coverage": {
+    "start": "2017-01-01",
+    "end": "2026-12-31",
+    "gaps": []
+  },
+  "quantity_unit": "no.",
+  "quantity_comparable": true,
+  "second_unit": "kg",
+  "second_units": [
+    "kg"
+  ],
+  "record_count": 6,
+  "all_records_approved": true,
+  "scope_sha256": "5eb0d54e22046d1b84c88cafafbac767b78f861ac1640adcbe7c3fc3734747bc",
+  "record_sha256": "46da10afecd791bd2f16135fe9314dd200681f76d2e7a0d6892dbea4450277c3",
+  "approval": {
+    "method": "interactive_terminal_confirmation",
+    "procedural_boundary": "typed_confirmation_not_cryptographically_authenticated",
+    "verified_claim": "the scope_sha256 prefix was typed at an interactive terminal after the card was shown",
+    "not_verified": "reviewer identity and authority are not cryptographically authenticated",
+    "approval_card_path": "approval-card.json",
+    "approval_card_sha256": "6c638faaef9f0d186d581d8a0f7505ba7515da21746300ed589de6b564303e98",
+    "reviewer": "Guanqi Pan",
+    "approved_at_utc": "2026-11-06T18:45:55.176962+00:00"
+  },
+  "hts_history": {
+    "status": "unverified",
+    "warning": "连续性未核实: HTS codes were not checked against archived HTS editions for every year",
+    "continuity_verified": false,
+    "acknowledged_unverified": true
+  }
+}

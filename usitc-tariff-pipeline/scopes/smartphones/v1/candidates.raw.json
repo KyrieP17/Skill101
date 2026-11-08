@@ -1,0 +1,192 @@
+{
+  "retrieved_at_utc": "2026-11-08T00:31:26.023248+00:00",
+  "endpoint": "https://hts.usitc.gov/reststop/search",
+  "product_id": "smartphones",
+  "product_name": "Smartphones",
+  "searches": [
+    {
+      "keyword": "smartphones",
+      "url": "https://hts.usitc.gov/reststop/search?keyword=smartphones",
+      "results": [
+        {
+          "additionalDuties": null,
+          "description": "Telephone sets, including smartphones and other telephones for cellular networks or for other wireless networks; other apparatus for the transmission or reception of voice, images or other data, including apparatus for communication in a wired or wireless network (such as a local or wide area network), other than transmission or reception apparatus of heading 8443, 8525, 8527 or 8528; parts thereof:",
+          "effectivePeriod": null,
+          "footnotes": [],
+          "general": "",
+          "hasHighlight": null,
+          "highlightHtsNo": null,
+          "highlightStatSuffix": null,
+          "htmlStatNote": null,
+          "htscode": null,
+          "htsno": "8517",
+          "indent": "0",
+          "other": "",
+          "quotaQuantity": null,
+          "selector": "htsno",
+          "special": "",
+          "statisticalSuffix": "",
+          "status": null,
+          "tariff": null,
+          "type": null,
+          "unique": null,
+          "units": null
+        },
+        {
+          "additionalDuties": null,
+          "description": "Line telephone sets with cordless handsets",
+          "effectivePeriod": null,
+          "footnotes": [],
+          "general": "Free",
+          "hasHighlight": null,
+          "highlightHtsNo": null,
+          "highlightStatSuffix": null,
+          "htmlStatNote": null,
+          "htscode": null,
+          "htsno": "8517.11.00.00",
+          "indent": "2",
+          "other": "35%",
+          "quotaQuantity": null,
+          "selector": "htsno",
+          "special": "",
+          "statisticalSuffix": "00",
+          "status": null,
+          "tariff": null,
+          "type": null,
+          "unique": null,
+          "units": [
+            "No."
+          ]
+        },
+        {
+          "additionalDuties": null,
+          "description": "Smartphones",
+          "effectivePeriod": null,
+          "footnotes": [],
+          "general": "Free",
+          "hasHighlight": null,
+          "highlightHtsNo": null,
+          "highlightStatSuffix": null,
+          "htmlStatNote": null,
+          "htscode": null,
+          "htsno": "8517.13.00.00",
+          "indent": "2",
+          "other": "35%",
+          "quotaQuantity": null,
+          "selector": "htsno",
+          "special": "",
+          "statisticalSuffix": "00",
+          "status": null,
+          "tariff": null,
+          "type": null,
+          "unique": null,
+          "units": [
+            "No."
+          ]
+        },
+        {
+          "additionalDuties": null,
+          "description": "Back-shell style smartphone cases of hard plastics, each incorporating flexible rubber over command buttons and specially fitted rigid plastic clip with adjustable neoprene fabric armband (provided for in subheading 3926.90.99).",
+          "effectivePeriod": null,
+          "footnotes": [
+            {
+              "columns": [
+                "stat",
+                "units"
+              ],
+              "marker": "1",
+              "type": "footnote",
+              "value": "See chapter 99 statistical note 1."
+            }
+          ],
+          "general": "Free",
+          "hasHighlight": null,
+          "highlightHtsNo": null,
+          "highlightStatSuffix": null,
+          "htmlStatNote": null,
+          "htscode": null,
+          "htsno": "9902.12.09",
+          "indent": "0",
+          "other": "No change",
+          "quotaQuantity": null,
+          "selector": "htsno",
+          "special": "No change",
+          "statisticalSuffix": "",
+          "status": null,
+          "tariff": null,
+          "type": null,
+          "unique": null,
+          "units": []
+        },
+        {
+          "additionalDuties": null,
+          "description": "Smartphone cases, each attached to integral adjustable armbands wholly of textile materials, with such case of polyester-laminated neoprene, incorporating a clear plastic window for visual access to the smartphone screen and a small opening for headphone wires, whether or not with decorative plastic overlay (provided for in subheading 6307.90.98)",
+          "effectivePeriod": null,
+          "footnotes": [
+            {
+              "columns": [
+                "stat",
+                "units"
+              ],
+              "marker": "1",
+              "type": "footnote",
+              "value": "See chapter 99 statistical note 1."
+            }
+          ],
+          "general": "Free",
+          "hasHighlight": null,
+          "highlightHtsNo": null,
+          "highlightStatSuffix": null,
+          "htmlStatNote": null,
+          "htscode": null,
+          "htsno": "9902.13.84",
+          "indent": "0",
+          "other": "No change",
+          "quotaQuantity": null,
+          "selector": "htsno",
+          "special": "No change",
+          "statisticalSuffix": "",
+          "status": null,
+          "tariff": null,
+          "type": null,
+          "unique": null,
+          "units": []
+        },
+        {
+          "additionalDuties": null,
+          "description": "Electrothermic automatic coffee makers of a kind used for domestic purposes, each incorporated into a housing for permanent installation into a wall or cabinet or on a shelf and capable of remote operation via wireless connection to a smartphone or tablet (provided for in subheading 8516.71.00)",
+          "effectivePeriod": null,
+          "footnotes": [
+            {
+              "columns": [
+                "stat",
+                "units"
+              ],
+              "marker": "1",
+              "type": "footnote",
+              "value": "See chapter 99 statistical note 1."
+            }
+          ],
+          "general": "Free",
+          "hasHighlight": null,
+          "highlightHtsNo": null,
+          "highlightStatSuffix": null,
+          "htmlStatNote": null,
+          "htscode": null,
+          "htsno": "9902.16.66",
+          "indent": "0",
+          "other": "No change",
+          "quotaQuantity": null,
+          "selector": "htsno",
+          "special": "No change",
+          "statisticalSuffix": "",
+          "status": null,
+          "tariff": null,
+          "type": null,
+          "unique": null,
+          "units": []
+        }
+      ]
+    }
+  ]
+}
