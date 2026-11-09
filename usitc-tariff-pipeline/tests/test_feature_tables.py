@@ -25,7 +25,7 @@ from usitc_pipeline import plan as plan_module  # noqa: E402
 from usitc_pipeline import report as report_module  # noqa: E402
 from usitc_pipeline.analysis import build_origin_series, compare_origin_windows  # noqa: E402
 from usitc_pipeline.dataweb import DataWebClient  # noqa: E402
-from usitc_pipeline.study import Segment, StudyError  # noqa: E402
+from usitc_pipeline.study import Segment, StudyError, load_study  # noqa: E402
 from usitc_pipeline.study_pipeline import analyze_study, render_study_charts, report_study  # noqa: E402
 
 
@@ -186,6 +186,97 @@ class FeatureFindingTests(unittest.TestCase):
         )
 
 
+def display_frame() -> pd.DataFrame:
+    """Display rows: months 2025-01, 2025-02 and 2025-04 (no March), full years 2024-2025, 2026 YTD."""
+
+    data = {
+        # (frequency, period, status): {origin: (value, quantity, duty)}
+        ("monthly", "2025-01", "monthly"): {"China": (40, 4, 4), "India": (10, 2, 0), "Other reported origins": (50, 5, 1)},
+        ("monthly", "2025-02", "monthly"): {"China": (10, 1, 2), "India": (40, 8, 0), "Other reported origins": (50, 5, 1)},
+        ("monthly", "2025-04", "monthly"): {"China": (10, 1, 2), "India": (40, 8, 0), "Other reported origins": (150, 15, 1)},
+        ("annual", "2024", "full_year"): {"China": (70, 7, 0), "India": (10, 2, 0), "Other reported origins": (20, 2, 0)},
+        ("annual", "2025", "full_year"): {"China": (50, 5, 5), "India": (30, 6, 0), "Other reported origins": (20, 2, 0)},
+        ("annual", "2026", "ytd"): {"China": (5, 1, 0), "India": (5, 1, 0), "Other reported origins": (5, 1, 0)},
+    }
+    rows = []
+    for (frequency, period, status), origins in data.items():
+        world = sum(value for value, _, _ in origins.values())
+        for origin, (value, quantity, duty) in origins.items():
+            rows.append({
+                "frequency": frequency, "period": period, "period_status": status, "display_origin": origin,
+                "customs_value_usd": float(value), "quantity": float(quantity), "calculated_duty_usd": float(duty),
+                "world_value_usd": float(world), "quantity_comparable": origin != "Other reported origins",
+            })
+    return pd.DataFrame(rows)
+
+
+TIMELINE = [
+    {"date": "2025-02-10", "date_type": "effective", "measure": "Measure A", "rate_change": "+10%", "needs_check": True},
+    {"date": "2025-06-01", "date_type": "announced", "measure": "Measure B", "rate_change": float("nan"), "needs_check": False},
+]
+
+
+class ShareDecompositionTests(unittest.TestCase):
+    def build(self, **kwargs) -> pd.DataFrame:
+        return feature_module.build_share_decomposition(
+            display_frame(), [WINDOWS[1]], focal_origin="China", highlight_origins=["India"],
+            quantity_unit="No.", timeline=TIMELINE, **kwargs,
+        )
+
+    def row(self, table: pd.DataFrame, kind: str, base: str, origin: str) -> pd.Series:
+        return table[table["window_kind"].eq(kind) & table["base_periods"].eq(base) & table["display_origin"].eq(origin)].iloc[0]
+
+    def test_windows_are_consecutive_periods_named_months_and_ytd(self) -> None:
+        table = self.build(custom_windows=[("2025-02", "2025-04")])
+        windows = table.drop_duplicates(["window_kind", "base_periods"])
+        self.assertEqual(
+            list(zip(windows["window_kind"], windows["base_periods"], windows["compare_periods"])),
+            [("custom", "2025-02", "2025-04"), ("annual", "2024", "2025"), ("month", "2025-01", "2025-02")],
+            "no 2025-02 -> 2025-04 month row (not consecutive), no 2026 (not a full year), no YTD (2024 months unobserved)",
+        )
+        self.assertEqual(table["display_origin"].drop_duplicates().tolist(), ["China", "India", "Other reported origins"])
+        self.assertEqual(tuple(table.columns), feature_module.DECOMPOSITION_COLUMNS)
+
+    def test_share_change_splits_into_own_and_others_and_adds_up(self) -> None:
+        table = self.build(custom_windows=[("2025-02", "2025-04")])
+        parts = table["share_change_from_own_pp"] + table["share_change_from_others_pp"]
+        self.assertTrue(((parts - table["share_change_pp"]).abs() < 1e-9).all())
+        china = self.row(table, "month", "2025-01", "China")
+        self.assertAlmostEqual(china["share_change_pp"], -30.0)
+        self.assertLess(china["share_change_from_own_pp"], china["share_change_from_others_pp"])
+        # China's value is flat from February to April: the whole change comes from the others.
+        flat = self.row(table, "custom", "2025-02", "China")
+        self.assertAlmostEqual(flat["share_change_from_own_pp"], 0.0)
+        self.assertAlmostEqual(flat["share_change_from_others_pp"], -5.0)
+        self.assertEqual((flat["others_value_change_usd"], flat["world_value_change_usd"]), (100.0, 100.0))
+
+    def test_value_change_splits_into_quantity_and_unit_value(self) -> None:
+        table = self.build()
+        china = self.row(table, "month", "2025-01", "China")
+        self.assertAlmostEqual(china["value_change_from_quantity_usd"], -30.0)
+        self.assertAlmostEqual(china["value_change_from_unit_value_usd"], 0.0)
+        self.assertEqual(china["quantity_unit"], "No.")
+        self.assertAlmostEqual(china["base_realized_duty_pct"], 10.0)
+        annual = self.row(table, "annual", "2024", "China")
+        self.assertAlmostEqual(
+            annual["value_change_from_quantity_usd"] + annual["value_change_from_unit_value_usd"], annual["value_change_usd"]
+        )
+        other = self.row(table, "month", "2025-01", "Other reported origins")
+        self.assertTrue(pd.isna(other["value_change_from_quantity_usd"]) and pd.isna(other["quantity_unit"]))
+
+    def test_timeline_events_are_dated_inside_the_window(self) -> None:
+        table = self.build(custom_windows=[("2025-02", "2025-04")])
+        self.assertEqual(
+            self.row(table, "month", "2025-01", "India")["timeline_events"],
+            "2025-02-10 effective: Measure A (+10%) [to verify]",
+        )
+        self.assertEqual(
+            self.row(table, "annual", "2024", "China")["timeline_events"],
+            "2025-02-10 effective: Measure A (+10%) [to verify]; 2025-06-01 announced: Measure B",
+        )
+        self.assertNotIn("Measure B", self.row(table, "custom", "2025-02", "China")["timeline_events"])
+
+
 class SegmentsAndSplitEndToEndTests(unittest.TestCase):
     """The offline lithium fixture with [[segments]] and [brief] focal_split."""
 
@@ -234,6 +325,38 @@ class SegmentsAndSplitEndToEndTests(unittest.TestCase):
         self.study.write_text(original, encoding="utf-8")
         with self.assertRaisesRegex(StudyError, "only one segment"):
             self.run_study('\n[[segments]]\nlabel = "A"\ncodes = ["8507600010"]\n[[segments]]\nlabel = "B"\ncodes = ["8507600010"]\n')
+
+    def test_decomposition_is_off_by_default_and_reaches_findings_when_on(self) -> None:
+        original = self.study.read_text(encoding="utf-8")
+        default_hash = load_study(self.study, project_root=self.config.paths.root).study_sha256
+        self.study.write_text(original + "\n[decomposition]\nenabled = false\n", encoding="utf-8")
+        self.assertEqual(load_study(self.study, project_root=self.config.paths.root).study_sha256, default_hash)
+        self.study.write_text(original, encoding="utf-8")
+        out = self.run_study("\n[decomposition]\nenabled = true\n")
+        self.assertNotEqual(load_study(self.study, project_root=self.config.paths.root).study_sha256, default_hash)
+        table = pd.read_csv(out / "tables" / "share_decomposition.csv", dtype={"base_periods": str})
+        self.assertEqual(set(table["window_kind"]), {"annual"}, "annual-only study: consecutive full years only")
+        self.assertEqual(table["base_periods"].drop_duplicates().tolist()[:2], ["2017", "2018"])
+        parts = table["share_change_from_own_pp"] + table["share_change_from_others_pp"]
+        self.assertTrue(((parts - table["share_change_pp"]).abs() < 1e-9).all())
+        manifest = json.loads((out / "analysis_manifest.json").read_text(encoding="utf-8"))
+        self.assertIn("share_decomposition", manifest["outputs"])
+        findings = json.loads((out / "findings.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(findings["share_decomposition"]), len(table))
+
+    def test_decomposition_windows_need_monthly_periods_and_enabled(self) -> None:
+        original = self.study.read_text(encoding="utf-8")
+        for extra, message in (
+            ('\n[decomposition]\nwindows = [["2020-01", "2020-03"]]\n', "only with enabled = true"),
+            ('\n[decomposition]\nenabled = true\nwindows = [["2020-01", "2020-03"]]\n', r"inside \[periods\] monthly"),
+            ('\n[decomposition]\nenabled = true\nwindows = [["2020-1", "2020-03"]]\n', "YYYY-MM"),
+            ('\n[decomposition]\nenabled = "yes"\n', "true or false"),
+            ('\n[decomposition]\nenabled = true\nmonths = 3\n', "supports only enabled, windows"),
+        ):
+            with self.subTest(extra=extra):
+                self.study.write_text(original + extra, encoding="utf-8")
+                with self.assertRaisesRegex(StudyError, message):
+                    load_study(self.study, project_root=self.config.paths.root)
 
 
 if __name__ == "__main__":

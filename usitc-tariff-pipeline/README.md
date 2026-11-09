@@ -59,8 +59,12 @@ python run.py acquire --plan outputs\runs\<study_id>\plan-<hash12>\query_plan.js
 # 6. 分析、出图、验证、写报告；从不取数
 python run.py all --study config\studies\<study_id>.toml
 
-# 7. agent 写好 brief.md 之后：出最终报告 final_report.pdf（brief 正文 + 附录，用本机 Edge/Chrome 打印）
+# 7. agent 写好 brief.md 之后：先 brief-check，再出最终报告 final_report.pdf（brief 正文 + 附录，用本机 Edge/Chrome 打印）
+python run.py brief-check --study config\studies\<study_id>.toml
 python run.py report-pdf --study config\studies\<study_id>.toml
+
+# 时间线对照关税库（config/tariff_registry，D-026）；只读，不改任何文件
+python run.py registry-check --study config\studies\<study_id>.toml
 
 # 随时查看现状
 python run.py status

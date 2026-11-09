@@ -29,6 +29,19 @@ def no_images(src: str) -> str:
     raise AssertionError(f"unexpected image {src}")
 
 
+ZH_SECTIONS = ("1. 核心发现", "2. 关税时间线", "3. 主体", "4. 值得问的问题", "5. 下钻菜单", "6. 口径说明")
+EN_SECTIONS = ("1. Key findings", "2. Tariff timeline", "3. Body", "4. Questions", "5. Drill-down menu", "6. Notes on measures")
+
+
+def seven(title: str, first: str = "", *, sections: tuple[str, ...] = ZH_SECTIONS) -> str:
+    """A brief with the six sections brief-check requires (D-024, D-025); ``first`` is the findings body."""
+
+    parts = [f"# {title}\n"]
+    for index, heading in enumerate(sections):
+        parts.append(f"## {heading}\n\n{first if index == 0 and first else '—'}\n")
+    return "\n".join(parts)
+
+
 class MarkdownTests(unittest.TestCase):
     def test_title_paragraph_bold_and_code(self) -> None:
         title, body = markdown_html("# Title\n\nline one\nline **two `x`**\n", no_images)
@@ -115,7 +128,7 @@ class FinalReportEndToEndTests(unittest.TestCase):
     def test_brief_becomes_html_pdf_and_record(self) -> None:
         out = self.run_study("")
         first, *rest = self.charts(out)
-        brief = f"# 合成产品\n\n## 1. 结论\n\n| 来源地 | 份额 |\n|---|---|\n| China | 50% |\n\n![chart]({first})\n\n- 问题 **[Derived]**\n"
+        brief = seven("合成产品", f"| 来源地 | 说明 |\n|---|---|\n| China | 见图 |\n\n![chart]({first})\n\n- 问题 **[Derived]**")
         (out / "brief.md").write_text(brief, encoding="utf-8")
         before = {path.name: path.read_bytes() for path in out.iterdir() if path.is_file()}
         from usitc_pipeline.study_pipeline import final_report_study
@@ -127,7 +140,7 @@ class FinalReportEndToEndTests(unittest.TestCase):
         page = (out / "final_report.html").read_text(encoding="utf-8")
         self.assertIn("<title>合成产品</title>", page)
         self.assertEqual(page.count("data:image/png;base64,"), 1 + len(rest))
-        for label in ("附录", "A. 研究身份", "B. 数据核对", "C. 不能下的结论", "D. 其他图表", "E. 文件与哈希"):
+        for label in ("附录", "A. 研究身份", "B. 数据核对", "C. 不能下的结论", "D. 其他图表", "E. 文件与哈希", "正文 brief-check"):
             self.assertIn(label, page)
         manifest = json.loads((out / "analysis_manifest.json").read_text(encoding="utf-8"))
         self.assertIn(manifest["study_sha256"], page)
@@ -135,18 +148,26 @@ class FinalReportEndToEndTests(unittest.TestCase):
         self.assertEqual(record["inputs"]["brief"]["sha256"], final_module._sha256(out / "brief.md"))
         self.assertEqual(record["identity"]["study_sha256"], manifest["study_sha256"])
         self.assertEqual(record["printed_by"], "custom printer")
+        self.assertEqual(record["brief_check"]["status"], "pass")
         self.assertTrue((out / "final_report.pdf").read_bytes().startswith(b"%PDF"))
         after = {path.name: path.read_bytes() for path in out.iterdir() if path.is_file()}
         self.assertEqual({name: after[name] for name in before}, before)  # only the three new files
         self.assertEqual(set(after) - set(before), set(final_module.OUTPUTS))
 
     def test_english_brief_gets_an_english_appendix(self) -> None:
-        out, build = self.build("# Synthetic product\n\nText.\n")
+        out, build = self.build(seven("Synthetic product", "Text.", sections=EN_SECTIONS))
         build()
         page = (out / "final_report.html").read_text(encoding="utf-8")
         self.assertIn("Appendix", page)
         self.assertIn("A. Study identity", page)
         self.assertNotIn("附录", page)
+
+    def test_brief_failing_brief_check_is_refused(self) -> None:
+        out, build = self.build("# 合成产品\n\n## 1. 核心发现\n\n中国份额 50%。\n")
+        with self.assertRaisesRegex(FinalReportError, "brief-check"):
+            build()
+        self.assertFalse((out / "final_report.html").exists())
+        self.assertFalse((out / "final_report.pdf").exists())
 
     def test_missing_brief_is_refused(self) -> None:
         _, build = self.build(None)
@@ -194,7 +215,7 @@ class FinalReportEndToEndTests(unittest.TestCase):
             chat_confirmation="批准",
             confirm_prefix=json.loads(card.read_text(encoding="utf-8"))["scope_sha256"][:8],
         )
-        out, build = self.build("# 合成产品\n\n正文。\n")
+        out, build = self.build(seven("合成产品", "正文。"))
         build()
         manifest = json.loads((out / "analysis_manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["gate"]["approval_method"], "chat")
@@ -212,7 +233,7 @@ class FinalReportEndToEndTests(unittest.TestCase):
         if final_module.find_browser() is None:
             self.skipTest("no Edge or Chrome")
         out = self.run_study("")
-        (out / "brief.md").write_text(f"# 合成产品\n\n![x]({self.charts(out)[0]})\n", encoding="utf-8")
+        (out / "brief.md").write_text(seven("合成产品", f"![x]({self.charts(out)[0]})"), encoding="utf-8")
         from usitc_pipeline.study_pipeline import final_report_study
 
         result = final_report_study(self.config, self.study)

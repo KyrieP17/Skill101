@@ -11,7 +11,9 @@ Two layers, both optional and both plain CSV under ``config/tariff_timelines/``:
 A study names them in ``[timeline] file`` and ``[timeline] country``.  The rows
 enter ``study_sha256`` only, so a timeline never changes a query plan.
 
-Rows are research notes, not a tariff database.  ``review_status`` is
+Rows are research notes, not a tariff database; the database is
+``config/tariff_registry`` (``registry.py``), and ``registry-check`` compares
+a study's rows with it without editing them.  ``review_status`` is
 ``draft`` until the user checks a row and writes ``user_checked`` themselves;
 a row whose ``source_url`` is not a primary source (the HTS archive, the
 Federal Register, USTR or CBP) is reported as 待核对.

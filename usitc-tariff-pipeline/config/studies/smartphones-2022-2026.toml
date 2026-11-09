@@ -36,10 +36,187 @@ country = "config/tariff_timelines/_country.csv"
 
 [brief]
 focal_split = true
+# D-024: must-mention list and candidate decomposition windows.
+candidates = true
 
 # No [quantity] table: 8517.13.00.00 lists only No., so the scope has no second unit.
+
+# Change decomposition (D-022).  Windows (D-024) from window_candidates of
+# analysis-38ecb21c1b86's tables, previewed: China falls (2025-02 -> 2025-05),
+# rebounds outside September (2025-05 -> 2025-08) and falls back
+# (2025-10 -> 2025-12).  The candidate before them starts at the September 2024
+# peak (2024-09 -> 2025-02); this window starts at December instead, where other
+# origins rise while China holds.  The September jumps are "seasonal" rows and
+# stay in the month-to-month rows.  mix stays off: the scope has one code, so
+# the price-vs-mix split is zero by construction.
+[decomposition]
+enabled = true
+windows = [["2024-12", "2025-02"], ["2025-02", "2025-05"], ["2025-05", "2025-08"], ["2025-10", "2025-12"]]
+
+# D-024: rule flags for the brief's questions.
+[anomalies]
+enabled = true
 
 [drilldown]
 structure = "scopes/smartphones/v1/history/hts_rest_search_8517.13.json"
 
 # [context] hts4 is off: HTS4 map queries need the user's separate approval.
+
+# Numbers the brief uses that no standard table holds (D-024): declared here,
+# written to tables/calculations.csv by analyze.  "Other origins" = World - China;
+# "Other reported origins" = not China and not a highlight.
+[[derived]]
+id = "ytd-groups"
+label = "Jan-Sep 2026 against Jan-Sep 2025: other origins, the rest, World"
+origin = ["Other origins", "Other reported origins", "World"]
+measure = ["value", "share", "quantity", "quantity_share", "unit_value", "realized_duty"]
+window = ["2026-01", "2026-09"]
+base = ["2025-01", "2025-09"]
+
+[[derived]]
+id = "year-groups"
+label = "2025 against 2024: other origins and World"
+origin = ["Other origins", "World"]
+measure = ["value", "share"]
+window = "2025"
+base = "2024"
+
+[[derived]]
+id = "others-2024-months"
+label = "Other origins, lowest and highest month of 2024"
+origin = "Other origins"
+measure = "value"
+stat = ["min", "max"]
+window = ["2024-01", "2024-12"]
+
+[[derived]]
+id = "others-2025-01"
+label = "Other origins, January 2025"
+origin = "Other origins"
+measure = "value"
+window = "2025-01"
+
+[[derived]]
+id = "others-2026-mean"
+label = "Other origins, monthly mean Jan-Sep 2026"
+origin = "Other origins"
+measure = "value"
+stat = "mean"
+window = ["2026-01", "2026-09"]
+
+[[derived]]
+id = "q1-2025"
+label = "Q1 2025 against Q1 2024"
+origin = ["World", "India", "China", "Vietnam"]
+measure = "value"
+window = ["2025-01", "2025-03"]
+base = ["2024-01", "2024-03"]
+
+[[derived]]
+id = "feb-may-2025"
+label = "May 2025 against February 2025"
+origin = ["China", "Other origins", "World"]
+measure = "value"
+window = "2025-05"
+base = "2025-02"
+
+[[derived]]
+id = "apr-2025"
+label = "April 2025, World"
+origin = "World"
+measure = "value"
+window = "2025-04"
+
+[[derived]]
+id = "sep-2024"
+label = "China, September 2024 against the Jan-Aug 2024 monthly mean"
+origin = "China"
+measure = "value"
+stat = "mean"
+window = "2024-09"
+base = ["2024-01", "2024-08"]
+
+[[derived]]
+id = "sep-2025"
+label = "China, September 2025 against the Jan-Aug 2025 monthly mean"
+origin = "China"
+measure = "value"
+stat = "mean"
+window = "2025-09"
+base = ["2025-01", "2025-08"]
+
+[[derived]]
+id = "sep-2026"
+label = "China, September 2026 against the Jan-Aug 2026 monthly mean"
+origin = "China"
+measure = "value"
+stat = "mean"
+window = "2026-09"
+base = ["2026-01", "2026-08"]
+
+[[derived]]
+id = "sep-2026-unit-value"
+label = "China unit value, September 2026 against Jan-Aug 2026"
+origin = "China"
+measure = "unit_value"
+window = "2026-09"
+base = ["2026-01", "2026-08"]
+
+[[derived]]
+id = "jan-aug-share"
+label = "China share, Jan-Aug 2026 against Jan-Aug 2024"
+origin = "China"
+measure = "share"
+window = ["2026-01", "2026-08"]
+base = ["2024-01", "2024-08"]
+
+[[derived]]
+id = "mar-aug-range"
+label = "China, lowest and highest month, Mar-Aug 2026 against Mar-Aug 2024"
+origin = "China"
+measure = ["share", "realized_duty"]
+stat = ["min", "max"]
+window = ["2026-03", "2026-08"]
+base = ["2024-03", "2024-08"]
+
+[[derived]]
+id = "jan-aug-value-range"
+label = "China, lowest and highest month of value, Jan-Aug 2026 against Jan-Aug 2024"
+origin = "China"
+measure = "value"
+stat = ["min", "max"]
+window = ["2026-01", "2026-08"]
+base = ["2024-01", "2024-08"]
+
+[[derived]]
+id = "china-duty-2026"
+label = "China realized duty, lowest and highest month, Mar-Sep 2026"
+origin = "China"
+measure = "realized_duty"
+stat = ["min", "max"]
+window = ["2026-03", "2026-09"]
+
+[[derived]]
+id = "china-duty-2025"
+label = "China realized duty, lowest and highest month, Apr-Oct 2025"
+origin = "China"
+measure = "realized_duty"
+stat = ["min", "max"]
+window = ["2025-04", "2025-10"]
+
+[[derived]]
+id = "duty-2025-months"
+label = "Realized duty, lowest and highest month of 2025"
+origin = ["India", "Vietnam", "Other reported origins"]
+measure = "realized_duty"
+stat = ["min", "max"]
+window = ["2025-01", "2025-12"]
+
+[[derived]]
+id = "china-share-ranges"
+label = "China share, lowest and highest month: Jul-Dec 2024 and Jan-Aug 2026"
+origin = "China"
+measure = "share"
+stat = ["min", "max"]
+window = ["2026-01", "2026-08"]
+base = ["2024-07", "2024-12"]

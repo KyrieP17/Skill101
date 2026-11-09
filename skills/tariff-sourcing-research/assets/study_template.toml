@@ -45,9 +45,18 @@ file = "config/tariff_timelines/example-product.csv"
 country = "config/tariff_timelines/_country.csv"
 
 # Default for a new study: the three-row table (focal / other / total) with
-# calculated duty in USD, used by the brief's key numbers.
+# calculated duty in USD, used by the brief's key numbers.  candidates adds
+# tables/mention_list.csv (what the brief must mention; brief-check looks for
+# each item) and tables/window_candidates.csv (decomposition windows).
 [brief]
 focal_split = true
+candidates = true
+
+# Rule flags for the brief's questions -> tables/anomaly_flags.csv: new or
+# near-zero origins, realized duty below the base rate, unit value outliers,
+# surges before timeline dates, count against weight.
+[anomalies]
+enabled = true
 
 # When the scope records a second_unit (e.g. kg), default to "both": the first
 # unit stays in the main columns and the second unit sits beside it.  Remove
@@ -68,9 +77,26 @@ unit = "both"
 [drilldown]
 structure = "scopes/example-product/v1/history/hts_rest_search_0000.00.json"
 
-# HTS4 context map (extra queries outside the scope: the user approves them
-# separately; acquire never fetches them).  hts6 lists every HTS6 line of the
-# scope's headings, taken from the HTS structure.
-# [context]
-# hts4 = true
-# hts6 = ["000010", "000020"]
+# Change decomposition -> tables/share_decomposition.csv: each origin's share
+# change split into its own value and all other origins, value change split
+# into quantity and unit value, for consecutive years and months, the YTD and
+# each month pair in windows.  Add windows after the first run, from
+# tables/window_candidates.csv (suggested = true).  mix splits the unit-value
+# part into price within codes and the shift between codes: on when the scope
+# has two or more codes.
+[decomposition]
+enabled = true
+mix = true
+# windows = [["2024-12", "2025-02"]]
+
+# Numbers the brief needs that no table holds -> tables/calculations.csv, one
+# row per origin, measure and stat, with the formula and the sums it used.
+# Never add, average or divide in chat: declare it here and re-run analyze.
+# [[derived]]
+# id = "q1-total"
+# label = "Q1 imports, 2025 against 2024"
+# origin = ["World", "China", "Other origins"]   # Other origins = World - focal
+# measure = ["value", "share"]   # value quantity duty share quantity_share unit_value realized_duty
+# stat = "total"                 # total (default), mean, min, max
+# window = ["2025-01", "2025-03"]   # "YYYY-MM", "YYYY" or [first, last]
+# base = ["2024-01", "2024-03"]     # optional, same kind as window

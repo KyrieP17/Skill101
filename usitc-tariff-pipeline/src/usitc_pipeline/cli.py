@@ -13,7 +13,9 @@ A study of any HTS product::
     plan    --study config/studies/<study_id>.toml
     acquire --plan outputs/runs/<study_id>/plan-<hash>/query_plan.json
     all     --study config/studies/<study_id>.toml   # analyze -> charts -> validate -> report
-    report-pdf --study config/studies/<study_id>.toml  # brief.md + appendix -> final_report.pdf
+    brief-check --study config/studies/<study_id>.toml # labels, sources, traced numbers, wording, sections
+    report-pdf --study config/studies/<study_id>.toml  # brief-check, then brief.md + appendix -> final_report.pdf
+    registry-check [--study config/studies/<study_id>.toml]  # timeline rows against config/tariff_registry
 
 The user approves the card either in chat (the agent then records their words) or in a terminal
 (the command refuses a non-interactive shell unless --chat-confirmation is given)::
@@ -125,9 +127,23 @@ def build_parser() -> argparse.ArgumentParser:
                 "--legacy-baseline", action="store_true", help="Reproduce the original research.toml baseline"
             )
 
+    check = subparsers.add_parser(
+        "brief-check",
+        help="Check brief.md: evidence labels, cited sources, every number traced to them, wording, section order",
+    )
+    check_target = check.add_mutually_exclusive_group(required=True)
+    check_target.add_argument("--study", type=Path, help="Study TOML whose analysis directory holds brief.md")
+    check_target.add_argument("--replay", type=Path, help="Replay TOML whose analysis directory holds brief.md")
+
+    registry = subparsers.add_parser(
+        "registry-check",
+        help="Validate config/tariff_registry; with --study, compare the study's timeline rows with it (read-only)",
+    )
+    registry.add_argument("--study", type=Path, default=None, help="Study TOML whose timeline and scope codes to check")
+
     final = subparsers.add_parser(
         "report-pdf",
-        help="Validate, then render the agent-written brief.md plus an appendix into final_report.html and final_report.pdf",
+        help="Validate and brief-check, then render the agent-written brief.md plus an appendix into final_report.html and final_report.pdf",
     )
     final_target = final.add_mutually_exclusive_group(required=True)
     final_target.add_argument("--study", type=Path, help="Study TOML whose analysis directory holds brief.md")
@@ -149,6 +165,47 @@ def _run_final_report(args: argparse.Namespace, config: ResearchConfig) -> int:
     except (*DOMAIN_ERRORS, ValidationError, FinalReportError) as exc:
         return _fail(str(exc))
     _emit(result)
+    return 0
+
+
+def _run_brief_check(args: argparse.Namespace, config: ResearchConfig) -> int:
+    """Print the full check; exit 2 when the brief has errors, so report-pdf would refuse it."""
+
+    from . import study_pipeline
+    from .analysis import ValidationError
+    from .brief_check import BriefCheckError
+
+    try:
+        result = study_pipeline.brief_check_study(config, args.study, replay=args.replay)
+    except (*DOMAIN_ERRORS, ValidationError, BriefCheckError) as exc:
+        return _fail(str(exc))
+    _emit(result)
+    return 0 if result["status"] == "pass" else 2
+
+
+def _run_registry_check(args: argparse.Namespace, config: ResearchConfig) -> int:
+    """Print the registry summary, or the study's timeline against it; never edits a file."""
+
+    from .plan import load_project_study, timeline_records
+    from .registry import RegistryError, check_timeline, load_registry, summary
+    from .scope import verify_scope_manifest
+
+    root = config.paths.root
+    try:
+        registry = load_registry(root / "config" / "tariff_registry")
+        if args.study is None:
+            _emit(summary(registry))
+            return 0
+        study = load_project_study(config, args.study)
+        scope = verify_scope_manifest(root / study.scope_manifest)
+        records = timeline_records(config, study)
+        rows = [row for layer in ("product", "country") for row in records.get(layer, [])]
+        years = [span.start for span in (study.annual, study.monthly) if span is not None]
+        since = f"{min(years)}-01-01" if years else None
+        result = check_timeline(registry, rows, sorted({line.hts_code for line in scope.included}), since=since)
+    except (*DOMAIN_ERRORS, RegistryError) as exc:
+        return _fail(str(exc))
+    _emit({"study_id": study.study_id, **result})
     return 0
 
 
@@ -298,6 +355,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "report-pdf":
         return _run_final_report(args, config)
+    if args.command == "brief-check":
+        return _run_brief_check(args, config)
+    if args.command == "registry-check":
+        return _run_registry_check(args, config)
     if args.command in STAGES and not getattr(args, "legacy_baseline", False):
         return _run_study(args.command, config, args.study, args.replay)
     try:

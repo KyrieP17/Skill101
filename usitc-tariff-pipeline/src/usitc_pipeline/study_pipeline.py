@@ -44,8 +44,11 @@ from .analysis import (
     derive_data_through,
     validate_trade_panel,
 )
+from . import brief_check as brief_check_module
+from . import calculations as calculation_module
 from . import charts as chart_module
 from . import features as feature_module
+from . import flags as flag_module
 from .config import ResearchConfig
 from .dataweb import cached_metadata, file_sha256, snapshot_paths
 from .normalize import SECOND_QUANTITY_COLUMNS, normalize_dataweb_files
@@ -90,7 +93,10 @@ CORE_OUTPUTS = (
 OPTIONAL_OUTPUTS = ("product_reallocation", "origin_change", "monthly_panel", "event_metrics")
 # Outputs of opt-in study features.  They appear in the manifest only when the
 # study turns the feature on, so default studies keep their manifest shape.
-FEATURE_OUTPUTS = ("tariff_timeline", "focal_split", "segment_series", "quantity_check", "drilldown_menu", "heading_map")
+FEATURE_OUTPUTS = (
+    "tariff_timeline", "focal_split", "segment_series", "quantity_check", "drilldown_menu", "heading_map",
+    "share_decomposition", "calculations", "anomaly_flags", "mention_list", "window_candidates",
+)
 INTERPRETATION_BOUNDARIES = [
     "Country or area of origin is not value-added origin.",
     "A gaining source does not prove direct relocation from the focal origin.",
@@ -698,10 +704,49 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
             panel, weight_panel, windows, segments=study.segments, first_unit=scope.quantity_unit,
             second_unit=scope.second_unit, total_comparable=scope.quantity_comparable,
         )
+    if study.derived:
+        try:
+            feature_tables["calculations"] = calculation_module.build_calculations(
+                origin_series, study.derived, focal_origin=study.focal_origin, highlight_origins=study.highlight_origins,
+                quantity_unit=quantity_unit, second_unit=scope.second_unit if both else None,
+            )
+        except calculation_module.CalculationError as exc:
+            raise ValidationError(str(exc)) from exc
     for name, frame in feature_tables.items():
         frame.to_csv(tables / f"{name}.csv", index=False)
         feature_written[name] = tables / f"{name}.csv"
         features[name] = _json_ready(frame.to_dict(orient="records"))
+    if study.decomposition:
+        decomposition = feature_module.build_share_decomposition(
+            display, windows, focal_origin=study.focal_origin, highlight_origins=study.highlight_origins,
+            custom_windows=study.decomposition_windows, quantity_unit=quantity_unit, timeline=features.get("timeline"),
+            panel=panel, mix=study.decomposition_mix,
+        )
+        decomposition.to_csv(tables / "share_decomposition.csv", index=False)
+        feature_written["share_decomposition"] = tables / "share_decomposition.csv"
+        # findings.json keeps the named, YTD and annual windows; the month-to-month rows stay in the CSV.
+        named = decomposition[decomposition["window_kind"].ne("month")]
+        features["share_decomposition"] = _json_ready(named.to_dict(orient="records"))
+    # Rule-based aids for the brief (D-024): flags to ask about, what must be mentioned, window candidates.
+    brief_tables: dict[str, pd.DataFrame] = {}
+    anomaly_skips: dict[str, str] = {}
+    if study.anomalies:
+        brief_tables["anomaly_flags"], anomaly_skips = flag_module.build_anomaly_flags(
+            changes, display, focal_origin=study.focal_origin, highlight_origins=study.highlight_origins,
+            timeline=features.get("timeline"), drilldown_menu=features.get("drilldown_menu"),
+            quantity_check=feature_tables.get("quantity_check"),
+        )
+    if study.brief_candidates:
+        brief_tables["mention_list"] = flag_module.build_mention_list(
+            changes, focal_origin=study.focal_origin, timeline=features.get("timeline"),
+            continuity_verified=bool(context.gate.get("continuity_verified")),
+        )
+        brief_tables["window_candidates"] = flag_module.build_window_candidates(
+            display, focal_origin=study.focal_origin, study_windows=study.decomposition_windows,
+        )
+    for name, frame in brief_tables.items():
+        frame.to_csv(tables / f"{name}.csv", index=False)
+        feature_written[name] = tables / f"{name}.csv"
 
     written: dict[str, Path | None] = {name: None for name in (*CORE_OUTPUTS, *OPTIONAL_OUTPUTS)}
     for name, frame in (
@@ -745,6 +790,8 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
         "event_windows": None if study.event_windows else "study lists no [[event_windows]]",
         "fred_domestic_proxy": "not part of the scope-driven study",
     }
+    if study.anomalies:
+        skips["anomaly_rules"] = anomaly_skips
     identity = {
         "study_id": study.study_id,
         "study_title": study.title,
@@ -991,21 +1038,46 @@ def _final_report(
     browser: str | Path | None = None,
     printer: Any = None,
 ) -> dict[str, Any]:
-    from .final_report import build_final_report
+    from .final_report import FinalReportError, build_final_report
 
     validation = _validate(config, context)
     out = context.output_dir
+    manifest = _read_json(out / "analysis_manifest.json", label="analysis manifest")
+    chart_manifest = _read_json(out / "chart_manifest.json", label="chart manifest")
+    if not (out / brief_check_module.BRIEF).is_file():
+        raise FinalReportError(f"No {brief_check_module.BRIEF} in {out}; write the brief first (deliverables.md), then run report-pdf")
+    check = brief_check_module.check_brief(out, manifest=manifest, chart_manifest=chart_manifest)
+    if check["status"] != "pass":
+        shown = "; ".join(
+            f"line {item['line']}: {item['message']}" if item["line"] else item["message"] for item in check["errors"][:5]
+        )
+        more = f" (and {len(check['errors']) - 5} more)" if len(check["errors"]) > 5 else ""
+        raise FinalReportError(
+            f"{brief_check_module.BRIEF} failed brief-check with {len(check['errors'])} errors: {shown}{more}. "
+            "Run `brief-check` for the full list."
+        )
     result = build_final_report(
         out,
-        manifest=_read_json(out / "analysis_manifest.json", label="analysis manifest"),
+        manifest=manifest,
         validation=validation,
         findings=_read_json(out / "findings.json", label="findings"),
-        chart_manifest=_read_json(out / "chart_manifest.json", label="chart manifest"),
+        chart_manifest=chart_manifest,
         language=language,
         browser=browser,
         printer=printer,
+        brief_check=brief_check_module.summary(check),
     )
     return {**result, "validation": validation}
+
+
+def _brief_check(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
+    _validate(config, context)
+    out = context.output_dir
+    return brief_check_module.check_brief(
+        out,
+        manifest=_read_json(out / "analysis_manifest.json", label="analysis manifest"),
+        chart_manifest=_read_json(out / "chart_manifest.json", label="chart manifest"),
+    )
 
 
 def _context(config: ResearchConfig, study_path: str | Path | None, replay_path: str | Path | None) -> StudyContext:
@@ -1047,6 +1119,12 @@ def final_report_study(
     browser: str | Path | None = None,
     printer: Any = None,
 ) -> dict[str, Any]:
-    """Validate, then render brief.md plus an appendix into final_report.html and final_report.pdf."""
+    """Validate, check brief.md, then render it plus an appendix into final_report.html and final_report.pdf."""
 
     return _final_report(config, _context(config, study_path, replay), language=language, browser=browser, printer=printer)
+
+
+def brief_check_study(config: ResearchConfig, study_path: str | Path | None = None, *, replay: str | Path | None = None) -> dict[str, Any]:
+    """Validate, then check brief.md against the validated outputs (the same check report-pdf runs)."""
+
+    return _brief_check(config, _context(config, study_path, replay))

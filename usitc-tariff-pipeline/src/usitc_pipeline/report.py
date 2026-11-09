@@ -518,7 +518,11 @@ def build_findings(
         "key_points": key_points,
         "skips": skips,
         **({"timeline": timeline} if timeline else {}),
-        **{name: features[name] for name in ("focal_split", "segment_series", "drilldown_menu", "heading_map") if features.get(name)},
+        **{
+            name: features[name]
+            for name in ("focal_split", "segment_series", "drilldown_menu", "heading_map", "share_decomposition")
+            if features.get(name)
+        },
         "boundaries": [
             "原产地是申报的原产国/地区，不是增加值来源。",
             "份额上升的来源地不等于从焦点来源地直接转移的产能。",

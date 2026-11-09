@@ -1,0 +1,50 @@
+measure_id,hts,coverage,evidence,status,notes
+s301-list4a,8507.60,covered,hts-2025rev32-ch99 note 20(s)(6),verified,9903.88.15 覆盖 8507.60.00；2024-09-27 起 8507.60.0010 改按 9903.91.01
+s301-list4a-cut,8507.60,covered,hts-2025rev32-ch99 note 20(s)(6),verified,同 s301-list4a
+s301-list4b-suspended,8471.30,suspended,hts-2026rev22-ch99 note 20(u),verified,note 20(u) 清单有 8471.30.01；该清单从未生效
+s301-list4b-suspended,8517.13,suspended,hts-2026rev22-ch99 note 20(u),verified,note 20(u) 清单用的是 2022 年前的手机税号 8517.12.00；8517.13 是 2022 年起的编码
+s301-review-report,8507.60,covered,fr-89-76581,verified,复审定下的提税清单里有电动车用和非电动车用锂电池
+s301-li-ion-ev,8507.60,covered,hts-2025rev32-ch99 note 31(b)(4),verified,只覆盖 8507.60.0010（电动车用）
+s301-li-ion-other,8507.60,covered,hts-2026rev22-ch99 note 31(g)(5),verified,覆盖 8507.60.00
+ieepa-fentanyl-china,8517.13,covered,hts-2026rev22-ch99 note 2(s),verified,中国和香港的全部产品；读到的例外是 50 U.S.C. 1702(b) 物品（9903.01.21-.22）和第 98 章
+ieepa-fentanyl-china,8471.30,covered,hts-2026rev22-ch99 note 2(s),verified,同上
+ieepa-fentanyl-china,8507.60,covered,hts-2026rev22-ch99 note 2(s),verified,同上
+ieepa-fentanyl-china-20,8517.13,covered,hts-2026rev22-ch99 note 2(s)-(u),verified,对等关税的电子产品例外（9903.01.32）不含 9903.01.24
+ieepa-fentanyl-china-20,8471.30,covered,hts-2026rev22-ch99 note 2(s)-(u),verified,同上
+ieepa-fentanyl-china-20,8507.60,covered,hts-2026rev22-ch99 note 2(s)-(u),verified,
+ieepa-fentanyl-china-10,8517.13,covered,hts-2026rev22-ch99 note 2(u),verified,
+ieepa-fentanyl-china-10,8471.30,covered,hts-2026rev22-ch99 note 2(u),verified,
+ieepa-fentanyl-china-10,8507.60,covered,hts-2026rev22-ch99 note 2(u),verified,
+ieepa-reciprocal-electronics-exception,8517.13,covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,清单有 8517.13.00；例外的起始日见 measures.csv（待核对）
+ieepa-reciprocal-electronics-exception,8471.30,covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,清单列的是整个 8471
+ieepa-reciprocal-electronics-exception,8507.60,not_covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,清单没有 8507.60
+ieepa-reciprocal-baseline,8517.13,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 例外；起始日待核对
+ieepa-reciprocal-baseline,8471.30,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 例外（整个 8471）；起始日待核对
+ieepa-reciprocal-baseline,8507.60,covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,不在 9903.01.32 清单里；8507.60.00 只出现在民用航空器例外清单里
+ieepa-reciprocal-china-84,8517.13,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 例外覆盖 9903.01.63
+ieepa-reciprocal-china-84,8471.30,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,同上
+ieepa-reciprocal-china-84,8507.60,covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,
+ieepa-reciprocal-china-125,8517.13,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 例外覆盖 9903.01.63
+ieepa-reciprocal-china-125,8471.30,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,同上
+ieepa-reciprocal-china-125,8507.60,covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,
+ieepa-reciprocal-others-paused,8517.13,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,
+ieepa-reciprocal-others-paused,8471.30,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,
+ieepa-reciprocal-others-paused,8507.60,covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,
+ieepa-reciprocal-china-10,8517.13,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,
+ieepa-reciprocal-china-10,8471.30,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,
+ieepa-reciprocal-china-10,8507.60,covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,
+ieepa-reciprocal-country-rates,8517.13,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 例外覆盖 9903.02.01-9903.02.73
+ieepa-reciprocal-country-rates,8471.30,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,同上
+ieepa-reciprocal-country-rates,8507.60,covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,
+s232-semiconductors,8517.13,not_covered,hts-2026rev22-ch99 note 39(b),verified,
+s232-semiconductors,8471.30,not_covered,hts-2026rev22-ch99 note 39(b),verified,note 39(b) 有 8471.50 和 8471.80，没有 8471.30
+s232-semiconductors,8507.60,not_covered,hts-2026rev22-ch99 note 39(b),verified,
+s122-surcharge,8517.13,exempt,hts-2026rev22-ch99 note 2(aa)(ii),verified,9903.03.03 例外清单有 8517.13.00
+s122-surcharge,8471.30,exempt,hts-2026rev22-ch99 note 2(aa)(ii),verified,9903.03.03 例外清单有 8471.30.01
+s122-surcharge,8507.60,covered,hts-2026rev22-ch99 note 2(aa)(ii)-(iv),待核对,不在 (aa)(ii)、(iii) 里，只在 (iv) 民用航空器清单里；(aa)(v)-(viii) 没有逐条读
+s122-surcharge-ended,8517.13,exempt,hts-2026rev22-ch99 note 2(aa)(ii),verified,
+s122-surcharge-ended,8471.30,exempt,hts-2026rev22-ch99 note 2(aa)(ii),verified,
+s122-surcharge-ended,8507.60,covered,hts-2026rev22-ch99 note 2(aa)(ii)-(iv),待核对,同 s122-surcharge
+s301-forced-labor,8517.13,exempt,hts-2026rev22-ch99 note 52(b),verified,9903.05.86 例外清单有 8517.13.00
+s301-forced-labor,8471.30,exempt,hts-2026rev22-ch99 note 52(b),verified,9903.05.86 例外清单有 8471.30.01
+s301-forced-labor,8507.60,covered,hts-2026rev22-ch99 note 52(b)-(d),待核对,不在 52(b)、(c) 里，只在 (d) 民用航空器清单里；52(e)-(k) 没有逐条读

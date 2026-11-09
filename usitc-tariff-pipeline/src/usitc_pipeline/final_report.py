@@ -81,6 +81,8 @@ LABELS = {
         "world_missing": "没有 tables/world_check.csv",
         "coverage": "编码覆盖",
         "coverage_value": "{codes} 行编码-频率，{review} 行需要复核，{missing} 行有缺口",
+        "brief_check": "正文 brief-check",
+        "brief_check_value": "{status}：{checked} 个带单位的数，{traced} 个在所引的已验证文件里找到；引用 {sources} 个文件；{warnings} 个警告",
         "chart_data": "图表数据：",
         "no_charts": "正文已经放了全部图表。",
         "file": "文件",
@@ -124,6 +126,8 @@ LABELS = {
         "world_missing": "no tables/world_check.csv",
         "coverage": "Code coverage",
         "coverage_value": "{codes} code-frequency rows, {review} need review, {missing} have gaps",
+        "brief_check": "Body brief-check",
+        "brief_check_value": "{status}: {checked} numbers with a unit, {traced} found in the validated files they cite; {sources} files cited; {warnings} warnings",
         "chart_data": "Chart data: ",
         "no_charts": "The body already shows every chart.",
         "file": "File",
@@ -389,6 +393,7 @@ def appendix_html(
     output_dir: Path,
     brief_sha256: str,
     language: str,
+    brief_check: dict[str, Any] | None = None,
 ) -> str:
     words = LABELS[language]
     gate = manifest.get("gate") or {}
@@ -432,6 +437,15 @@ def appendix_html(
     coverage = _coverage_summary(output_dir / "tables" / "coverage_audit.csv", words)
     if coverage:
         checks.append((words["coverage"], html.escape(coverage)))
+    if brief_check is not None:
+        counts = brief_check.get("numbers") or {}
+        checks.append((words["brief_check"], html.escape(words["brief_check_value"].format(
+            status=words["passed"] if brief_check.get("status") == "pass" else words["failed"],
+            checked=counts.get("checked", 0),
+            traced=counts.get("traced", 0),
+            sources=len(brief_check.get("sources_cited") or []),
+            warnings=len(brief_check.get("warnings") or []),
+        ))))
 
     boundaries = findings.get("boundaries") if language == "zh" else manifest.get("interpretation_boundaries")
     boundaries = boundaries or findings.get("boundaries") or manifest.get("interpretation_boundaries") or []
@@ -575,11 +589,13 @@ def build_final_report(
     language: str | None = None,
     browser: str | Path | None = None,
     printer: Callable[[Path, Path], None] | None = None,
+    brief_check: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Write final_report.html, final_report.pdf and final_report.json from brief.md.
 
     The caller has already validated the study and verified every chart artifact in
-    ``chart_manifest``. ``printer`` replaces the browser (tests).
+    ``chart_manifest``. ``printer`` replaces the browser (tests). ``brief_check`` is the
+    summary of a passing brief-check of this same brief; it is kept in final_report.json.
     """
 
     output_dir = Path(output_dir)
@@ -610,6 +626,8 @@ def build_final_report(
     others = [(chart, data_uri(path)) for path, chart in charts.items() if path not in body_charts]
     appendix_charts = [chart["png"]["path"] for chart, _ in others]
     brief_sha = _sha256(brief_path)
+    if brief_check is not None and brief_check.get("brief_sha256") != brief_sha:
+        raise FinalReportError(f"{BRIEF} changed after brief-check; run report-pdf again")
     appendix = appendix_html(
         manifest=manifest,
         validation=validation,
@@ -618,6 +636,7 @@ def build_final_report(
         output_dir=output_dir,
         brief_sha256=brief_sha,
         language=language,
+        brief_check=brief_check,
     )
     html_path, pdf_path, record_path = (output_dir / name for name in OUTPUTS)
     html_path.write_text(page_html(title, body, appendix, language), encoding="utf-8")
@@ -653,6 +672,8 @@ def build_final_report(
             name: {"path": name, "sha256": _sha256(output_dir / name)} for name in OUTPUTS[:2]
         },
     }
+    if brief_check is not None:
+        record["brief_check"] = brief_check
     record_path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return {
         "final_report_pdf": str(pdf_path),

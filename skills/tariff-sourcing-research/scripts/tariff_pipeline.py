@@ -46,7 +46,9 @@ PIPELINE_COMMANDS = (
     "validate",
     "report",
     "all",
+    "brief-check",
     "report-pdf",
+    "registry-check",
 )
 TOKEN_COMMANDS = {"acquire"}
 

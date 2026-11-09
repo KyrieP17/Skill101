@@ -54,13 +54,19 @@ from .scope import SLUG_PATTERN, canonical_sha256
 
 
 MONTH_PATTERN = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
+YEAR_PATTERN = re.compile(r"\d{4}")
 KNOWN_TABLES = {
     "study", "periods", "origins", "comparison", "event_windows", "events", "quantity",
-    "timeline", "segments", "brief", "context", "drilldown",
+    "timeline", "segments", "brief", "context", "drilldown", "decomposition", "derived", "anomalies",
 }
 # "both": first unit in the main columns, the second unit (e.g. kg) beside it.
 QUANTITY_BASES = ("first", "second", "both")
 MAX_HIGHLIGHTS = 6  # one fixed chart color each after the focal origin; the rest fold into "Other"
+# [[derived]]: what can be measured over a window, and how its periods combine.
+DERIVED_MEASURES = ("value", "quantity", "duty", "share", "quantity_share", "unit_value", "realized_duty")
+SECOND_UNIT_MEASURES = ("quantity_2", "quantity_2_share", "unit_value_2")
+DERIVED_STATS = ("total", "mean", "min", "max")
+DERIVED_KEYS = ("id", "label", "origin", "measure", "stat", "window", "base")
 
 
 class StudyError(ValueError):
@@ -102,6 +108,35 @@ class Segment:
 
 
 @dataclass(frozen=True)
+class Derived:
+    """One ``[[derived]]`` entry: a number the brief needs that no standard table holds.
+
+    Every combination of ``origins``, ``measures`` and ``stats`` becomes one row
+    of ``tables/calculations.csv``, over ``window`` and, when given, ``base``.
+    """
+
+    derived_id: str
+    label: str
+    origins: tuple[str, ...]
+    measures: tuple[str, ...]
+    stats: tuple[str, ...]
+    frequency: str
+    window: tuple[str, str]
+    base: tuple[str, str] | None = None
+
+    def as_json(self) -> dict[str, Any]:
+        return {
+            "id": self.derived_id,
+            "label": self.label,
+            "origins": list(self.origins),
+            "measures": list(self.measures),
+            "stats": list(self.stats),
+            "window": list(self.window),
+            "base": list(self.base) if self.base else None,
+        }
+
+
+@dataclass(frozen=True)
 class StudySpec:
     study_id: str
     title: str
@@ -131,6 +166,12 @@ class StudySpec:
     context_hts6: tuple[str, ...] = ()
     drilldown_structure: str | None = None
     drilldown_structure_sha256: str | None = None
+    decomposition: bool = False
+    decomposition_windows: tuple[tuple[str, str], ...] = ()
+    decomposition_mix: bool = False
+    derived: tuple[Derived, ...] = ()
+    anomalies: bool = False
+    brief_candidates: bool = False
 
     @property
     def second_quantity(self) -> bool:
@@ -175,8 +216,13 @@ class StudySpec:
             }
         if self.segments:
             settings["segments"] = [segment.as_json() for segment in self.segments]
+        brief: dict[str, bool] = {}
         if self.focal_split:
-            settings["brief"] = {"focal_split": True}
+            brief["focal_split"] = True
+        if self.brief_candidates:
+            brief["candidates"] = True
+        if brief:
+            settings["brief"] = brief
         if self.hts4_context:
             settings["context"] = {"hts4": True, "hts6": list(self.context_hts6)}
         if self.drilldown_structure:
@@ -184,6 +230,15 @@ class StudySpec:
                 "structure": self.drilldown_structure,
                 "structure_sha256": self.drilldown_structure_sha256,
             }
+        if self.decomposition:
+            decomposition: dict[str, Any] = {"windows": [list(window) for window in self.decomposition_windows]}
+            if self.decomposition_mix:
+                decomposition["mix"] = True
+            settings["decomposition"] = decomposition
+        if self.derived:
+            settings["derived"] = [item.as_json() for item in self.derived]
+        if self.anomalies:
+            settings["anomalies"] = {"enabled": True}
         return canonical_sha256(settings)
 
 
@@ -315,6 +370,108 @@ def _flag(table: dict[str, Any], key: str, name: str) -> bool:
     return value
 
 
+def _decomposition(table: dict[str, Any], monthly: YearRange | None) -> tuple[bool, tuple[tuple[str, str], ...]]:
+    """``[decomposition]``: enabled, plus optional month pairs to compare (e.g. the turns in a share path)."""
+
+    if sorted(set(table) - {"enabled", "windows", "mix"}):
+        raise StudyError("[decomposition] supports only enabled, windows and mix")
+    enabled = _flag(table, "enabled", "decomposition")
+    if _flag(table, "mix", "decomposition") and not enabled:
+        raise StudyError("decomposition.mix is used only with enabled = true")
+    items = table.get("windows", [])
+    if not isinstance(items, list):
+        raise StudyError('decomposition.windows must be a list of ["YYYY-MM", "YYYY-MM"] pairs')
+    if items and not enabled:
+        raise StudyError("decomposition.windows is used only with enabled = true")
+    windows: list[tuple[str, str]] = []
+    for index, item in enumerate(items):
+        where = f"decomposition.windows[{index}]"
+        if not (isinstance(item, list) and len(item) == 2 and all(isinstance(m, str) and MONTH_PATTERN.fullmatch(m) for m in item)):
+            raise StudyError(f'{where} must be ["YYYY-MM", "YYYY-MM"]')
+        start, end = item
+        if start >= end:
+            raise StudyError(f"{where}: the first month must come before the second")
+        if monthly is None or int(start[:4]) < monthly.start or int(end[:4]) > monthly.end:
+            raise StudyError(f"{where} must lie inside [periods] monthly")
+        windows.append((start, end))
+    if len(set(windows)) != len(windows):
+        raise StudyError("decomposition.windows must be distinct")
+    return enabled, tuple(windows)
+
+
+def _choices(value: Any, name: str, *, allowed: tuple[str, ...] | None = None, default: str | None = None) -> tuple[str, ...]:
+    """A string or a list of strings; ``default`` when the key is absent."""
+
+    if value is None:
+        if default is None:
+            raise StudyError(f"{name} is required")
+        return (default,)
+    items = _string_list([value] if isinstance(value, str) else value, name)
+    if not items:
+        raise StudyError(f"{name} must not be empty")
+    if allowed is not None and sorted(set(items) - set(allowed)):
+        raise StudyError(f"{name} must be one of {list(allowed)}; got {sorted(set(items) - set(allowed))}")
+    return items
+
+
+def _span(value: Any, name: str, annual: YearRange | None, monthly: YearRange | None) -> tuple[str, str, str]:
+    """``"YYYY-MM"``, ``"YYYY"`` or ``[first, last]`` of one kind -> (frequency, first, last)."""
+
+    items = [value, value] if isinstance(value, str) else value
+    if not (isinstance(items, list) and len(items) == 2 and all(isinstance(item, str) for item in items)):
+        raise StudyError(f'{name} must be "YYYY-MM", "YYYY" or ["first", "last"]')
+    first, last = items
+    if MONTH_PATTERN.fullmatch(first) and MONTH_PATTERN.fullmatch(last):
+        frequency, span = "monthly", monthly
+    elif YEAR_PATTERN.fullmatch(first) and YEAR_PATTERN.fullmatch(last):
+        frequency, span = "annual", annual
+    else:
+        raise StudyError(f"{name}: give months (YYYY-MM) or years (YYYY), not a mix; got {items}")
+    if first > last:
+        raise StudyError(f"{name}: {first} comes after {last}")
+    if span is None or int(first[:4]) < span.start or int(last[:4]) > span.end:
+        raise StudyError(f"{name} ({first}..{last}) must lie inside [periods] {frequency}")
+    return frequency, first, last
+
+
+def _derived(items: Any, annual: YearRange | None, monthly: YearRange | None, quantity_basis: str) -> tuple[Derived, ...]:
+    """``[[derived]]``: numbers for the brief that the standard tables do not hold."""
+
+    if items in (None, []):
+        return ()
+    if not isinstance(items, list):
+        raise StudyError("[[derived]] must be an array of tables")
+    result: list[Derived] = []
+    for index, item in enumerate(items, start=1):
+        where = f"derived[{index}]"
+        if not isinstance(item, dict) or sorted(set(item) - set(DERIVED_KEYS)):
+            raise StudyError(f"{where} takes only {list(DERIVED_KEYS)}")
+        derived_id = _slug(item.get("id"), f"{where}.id")
+        label = item.get("label", "")
+        if not isinstance(label, str):
+            raise StudyError(f"{where}.label must be a string")
+        measures = _choices(item.get("measure"), f"{where}.measure", allowed=DERIVED_MEASURES + SECOND_UNIT_MEASURES)
+        if quantity_basis != "both" and set(measures) & set(SECOND_UNIT_MEASURES):
+            raise StudyError(f'{where}: {list(SECOND_UNIT_MEASURES)} need [quantity] unit = "both"')
+        stats = _choices(item.get("stat"), f"{where}.stat", allowed=DERIVED_STATS, default="total")
+        origins = _choices(item.get("origin"), f"{where}.origin")
+        if "window" not in item:
+            raise StudyError(f"{where}.window is required")
+        frequency, *window = _span(item["window"], f"{where}.window", annual, monthly)
+        base = None
+        if "base" in item:
+            base_frequency, *base = _span(item["base"], f"{where}.base", annual, monthly)
+            if base_frequency != frequency:
+                raise StudyError(f"{where}: window and base must both be months or both be years")
+        result.append(
+            Derived(derived_id, label.strip(), origins, measures, stats, frequency, tuple(window), tuple(base) if base else None)
+        )
+    ids = [item.derived_id for item in result]
+    if len(set(ids)) != len(ids):
+        raise StudyError("derived ids must be unique")
+    return tuple(result)
+
+
 def load_study(
     path: str | Path,
     *,
@@ -410,8 +567,11 @@ def load_study(
     timeline_country = _project_relative(timeline["country"], root, "timeline.country") if timeline.get("country") else None
 
     brief = _table(raw, "brief", required=False)
-    if sorted(set(brief) - {"focal_split"}):
-        raise StudyError("[brief] supports only focal_split")
+    if sorted(set(brief) - {"focal_split", "candidates"}):
+        raise StudyError("[brief] supports only focal_split and candidates")
+    anomalies = _table(raw, "anomalies", required=False)
+    if sorted(set(anomalies) - {"enabled"}):
+        raise StudyError("[anomalies] supports only enabled")
     context = _table(raw, "context", required=False)
     if sorted(set(context) - {"hts4", "hts6"}):
         raise StudyError("[context] supports only hts4 and hts6")
@@ -429,6 +589,8 @@ def load_study(
     if drilldown and "structure" not in drilldown:
         raise StudyError('[drilldown] needs structure = "scopes/<id>/v<k>/history/<HTS REST search>.json"')
     structure = _project_relative(drilldown["structure"], root, "drilldown.structure") if drilldown else None
+    decomposition_table = _table(raw, "decomposition", required=False)
+    decomposition, decomposition_windows = _decomposition(decomposition_table, monthly)
 
     return StudySpec(
         study_id=study_id,
@@ -451,4 +613,10 @@ def load_study(
         hts4_context=hts4,
         context_hts6=tuple(sorted(context_hts6)),
         drilldown_structure=structure,
+        decomposition=decomposition,
+        decomposition_windows=decomposition_windows,
+        decomposition_mix=_flag(decomposition_table, "mix", "decomposition"),
+        derived=_derived(raw.get("derived"), annual, monthly, quantity_basis),
+        anomalies=_flag(anomalies, "enabled", "anomalies"),
+        brief_candidates=_flag(brief, "candidates", "brief"),
     )

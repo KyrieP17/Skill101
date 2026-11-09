@@ -22,7 +22,9 @@ python scripts\hts_current_check.py --scope <project>\scopes\<id>\v<k>\scope.csv
 python scripts\tariff_pipeline.py acquire --plan outputs\runs\<study_id>\plan-<h12>\query_plan.json
 python scripts\tariff_pipeline.py all --study config\studies\<study_id>.toml   # analyze, charts, validate, report
 python scripts\tariff_pipeline.py analyze --study ...        # also charts, validate, report one at a time
+python scripts\tariff_pipeline.py brief-check --study config\studies\<study_id>.toml  # after brief.md; report-pdf refuses a failing brief
 python scripts\tariff_pipeline.py report-pdf --study config\studies\<study_id>.toml   # after brief.md: final_report.pdf
+python scripts\tariff_pipeline.py registry-check [--study config\studies\<study_id>.toml]   # timeline rows against the tariff registry, read-only
 python scripts\tariff_pipeline.py test                       # the project's unit tests
 ```
 

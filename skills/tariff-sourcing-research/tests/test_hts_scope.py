@@ -558,7 +558,7 @@ class WrapperTests(unittest.TestCase):
 
     def test_wrapper_passes_through_the_pipeline_commands(self):
         expected = {"status", "scope-validate", "hts-history", "scope-approve", "plan", "acquire"}
-        expected |= {"analyze", "charts", "validate", "report", "all", "report-pdf"}
+        expected |= {"analyze", "charts", "validate", "report", "all", "brief-check", "report-pdf", "registry-check"}
         self.assertEqual(set(pipeline_wrapper.PIPELINE_COMMANDS), expected)
         self.assertEqual(pipeline_wrapper.TOKEN_COMMANDS, {"acquire"})
 
