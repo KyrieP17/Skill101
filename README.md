@@ -9,7 +9,7 @@ An agent skill plus its Python pipeline for U.S. import sourcing research from U
 | `skills/tariff-sourcing-research/` | the skill: `SKILL.md`, references, assets, scripts (scope resolver, current-HTS check, pipeline wrapper), evals, tests |
 | `usitc-tariff-pipeline/` | the pipeline: `src/usitc_pipeline`, tests, config (studies, tariff timelines, tariff registry), scopes (approved product definitions), `decisions.md` |
 | `usitc-tariff-pipeline/config/tariff_registry/` | tariff registry: chapter 99 measures whose dates, headings and coverage were read from the Federal Register and HTS archive, each with its source and SHA-256; `run.py registry-check --study ...` compares a timeline with it (D-026) |
-| `samples/` | two final reports (PDF): smartphones (HTS 8517.13, 2022–2026) and lithium-ion batteries (HTS 8507.60 down to HTS10, 2017–2026) |
+| `samples/` | three final reports (PDF): smartphones (HTS 8517.13, 2022–2026; English), memory integrated circuits (HTS 8542.32 with HTS10 product mix, 2017–2026; English), and lithium-ion batteries (HTS 8507.60 down to HTS10, 2017–2026) |
 
 ## How it runs
 
