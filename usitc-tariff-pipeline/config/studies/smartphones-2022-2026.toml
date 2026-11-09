@@ -57,8 +57,23 @@ windows = [["2024-12", "2025-02"], ["2025-02", "2025-05"], ["2025-05", "2025-08"
 [anomalies]
 enabled = true
 
+[tariff_snapshot]
+entry_date = "2026-11-09"
+hts_release_id = "2026HTSRev22"
+hts_release_date = "2026-10-30"
+origins = ["China"]
+rate_column = "general"
+preference_claim = "none"
+entry_type = "consumption"
+chapter_98 = false
+quota_or_trq = false
+ad_cvd = false
+firm_specific_rate = false
+requires_binding_classification = false
+
 [drilldown]
 structure = "scopes/smartphones/v1/history/hts_rest_search_8517.13.json"
+release_metadata = "scopes/smartphones/v1/history/hts_rest_search_8517.13.release.json"
 
 # [context] hts4 is off: HTS4 map queries need the user's separate approval.
 
