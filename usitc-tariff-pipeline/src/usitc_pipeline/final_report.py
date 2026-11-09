@@ -82,7 +82,7 @@ LABELS = {
         "coverage": "编码覆盖",
         "coverage_value": "{codes} 行编码-频率，{review} 行需要复核，{missing} 行有缺口",
         "brief_check": "正文 brief-check",
-        "brief_check_value": "{status}：{checked} 个带单位的数，{traced} 个在所引的已验证文件里找到；引用 {sources} 个文件；{warnings} 个警告",
+        "brief_check_value": "{status}：{tokens} 个数字 token，{parsed} 个已识别单位，{traced} 个在所引的已验证文件里找到；{ambiguous} 个单位歧义，{skipped} 个无单位跳过；引用 {sources} 个文件；{warnings} 个警告",
         "chart_data": "图表数据：",
         "no_charts": "正文已经放了全部图表。",
         "file": "文件",
@@ -127,7 +127,7 @@ LABELS = {
         "coverage": "Code coverage",
         "coverage_value": "{codes} code-frequency rows, {review} need review, {missing} have gaps",
         "brief_check": "Body brief-check",
-        "brief_check_value": "{status}: {checked} numbers with a unit, {traced} found in the validated files they cite; {sources} files cited; {warnings} warnings",
+        "brief_check_value": "{status}: {tokens} numeric tokens, {parsed} with a recognized unit, {traced} found in the validated files they cite; {ambiguous} ambiguous units, {skipped} unitless skips; {sources} files cited; {warnings} warnings",
         "chart_data": "Chart data: ",
         "no_charts": "The body already shows every chart.",
         "file": "File",
@@ -441,8 +441,11 @@ def appendix_html(
         counts = brief_check.get("numbers") or {}
         checks.append((words["brief_check"], html.escape(words["brief_check_value"].format(
             status=words["passed"] if brief_check.get("status") == "pass" else words["failed"],
-            checked=counts.get("checked", 0),
+            tokens=counts.get("numeric_tokens", counts.get("checked", 0) + counts.get("without_unit", 0)),
+            parsed=counts.get("parsed", counts.get("checked", 0)),
             traced=counts.get("traced", 0),
+            ambiguous=counts.get("ambiguous", 0),
+            skipped=counts.get("skipped", counts.get("without_unit", 0)),
             sources=len(brief_check.get("sources_cited") or []),
             warnings=len(brief_check.get("warnings") or []),
         ))))

@@ -139,14 +139,17 @@ class AnomalyFlagTests(unittest.TestCase):
                 data[f"{year}-{month:02d}"] = {"China": (china, 0.0), "India": (10.0, 0.0)}
         timeline = [
             {"date": "2025-04-05", "date_type": "effective", "measure": "Extra duty", "rate_change": "+20%",
-             "origins": "China", "applies_to": "", "needs_check": True},
+             "origins": "China", "applies_to": "", "needs_check": True, "coverage": "applies"},
             {"date": "2025-04-05", "date_type": "effective", "measure": "Code-only duty", "rate_change": "+20%",
-             "origins": "China", "applies_to": "1111111111", "needs_check": False},
+             "origins": "China", "applies_to": "1111111111", "needs_check": False, "coverage": "applies"},
+            {"date": "2025-04-05", "date_type": "effective", "measure": "Exempt duty", "rate_change": "+99%",
+             "origins": "China", "applies_to": "", "needs_check": False, "coverage": "exempt"},
         ]
         table, _ = flags.build_anomaly_flags(pd.DataFrame(), months(data), focal_origin="China", highlight_origins=["India"],
                                              timeline=timeline)
         duty = table[table["rule"].eq("duty_below_timeline")]
         self.assertEqual(duty["origin"].tolist(), ["China"], "the applies_to row is not a whole-scope rate")
+        self.assertNotIn("Exempt duty", " ".join(duty["timeline"].astype(str)))
         self.assertEqual(duty["periods"].iloc[0], "2025-05..2025-06")
         self.assertIn("待核对", duty["question"].iloc[0])
         surge = table[table["rule"].eq("surge_before_timeline_date")].set_index("origin")
@@ -166,7 +169,7 @@ class AnomalyFlagTests(unittest.TestCase):
         items = table["item"].tolist()
         self.assertEqual(items[:3], ["China", "India", "Chile"], "Chile only as a top-3 origin by value")
         self.assertIn("realized duty: China (annual_2024_vs_2025)", items)
-        self.assertIn("timeline rows not yet checked", items)
+        self.assertIn("timeline rows without a verified primary source", items)
         self.assertIn("HTS continuity not verified", items)
 
 
@@ -284,6 +287,9 @@ class BriefCheckTests(unittest.TestCase):
         self.assertEqual(report["status"], "pass", report["errors"])
         self.assertEqual(report["numbers"]["untraced"], 0)
         self.assertGreaterEqual(report["numbers"]["traced"], 4)
+        numbers = report["numbers"]
+        self.assertEqual(numbers["numeric_tokens"], numbers["parsed"] + numbers["ambiguous"] + numbers["skipped"])
+        self.assertEqual(numbers["ambiguous"], 0)
         self.assertEqual([item["check"] for item in report["warnings"]], ["findings"], "one finding, not 4-6")
 
     def test_untraced_unsourced_and_unlabeled_numbers(self) -> None:
@@ -310,6 +316,10 @@ class BriefCheckTests(unittest.TestCase):
         self.assertEqual(self.checks(GOOD_BRIEF), set(), "因为 inside a question is allowed")
         self.assertEqual(self.checks(GOOD_BRIEF.replace("China 份额下降。", "China 份额下降，因为关税。")), {"causal"})
         self.assertEqual(self.checks(GOOD_BRIEF.replace("China 份额下降。", "可能是关税。")), {"causal"})
+        for phrase in ("likely tariffs", "possibly tariffs", "may be tariffs", "suggests tariffs", "driven by tariffs",
+                       "shifted production", "moved production"):
+            with self.subTest(phrase=phrase):
+                self.assertEqual(self.checks(GOOD_BRIEF.replace("China 份额下降。", phrase + ".")), {"causal"})
 
     def test_mention_list_items_must_appear(self) -> None:
         pd.DataFrame([{"item": "India", "keywords": "India", "reason": "top 2", "source": "tables/origin_change.csv"}]).to_csv(
@@ -325,6 +335,25 @@ class BriefCheckTests(unittest.TestCase):
         ranged = brief_check.numbers("8.7–16.2 亿美元")
         self.assertEqual([item.unit for item in ranged], ["亿美元", "亿美元"], "a range takes the unit after it")
 
+        english = brief_check.numbers(
+            "$519 per unit; US$520/unit; USD 521; 58.9 USD bn; USD 120 mn; $58.9bn; 4.4x; 4.4×"
+        )
+        self.assertEqual(
+            [(item.value, item.unit) for item in english],
+            [(519.0, "per unit"), (520.0, "/unit"), (521.0, "USD"), (58.9, "USD bn"),
+             (120.0, "mn"), (58.9, "bn"), (4.4, "x"), (4.4, "×")],
+        )
+        self.assertEqual(brief_check.SCALES[english[3].unit], (1e9,))
+        ambiguous = brief_check.numbers("Value 7 EUR and 3 widgets")
+        self.assertEqual([(item.value, item.unit, item.ambiguous_unit) for item in ambiguous],
+                         [(7.0, None, "EUR"), (3.0, None, None)])
+
+    def test_unknown_adjacent_unit_is_an_error_not_a_silent_skip(self) -> None:
+        report = self.check(GOOD_BRIEF + "\n- Value 7 EUR. **[Derived]** — `tables/calculations.csv`\n")
+        self.assertIn("ambiguous_unit", {item["check"] for item in report["errors"]})
+        self.assertEqual(report["numbers"]["ambiguous"], 1)
+        self.assertGreaterEqual(report["numbers"]["skipped"], 0)
+
     def test_column_kinds(self) -> None:
         kind = brief_check.column_kind
         for name in ("value_change_from_unit_value_usd", "value_change_from_price_usd", "value_change_from_quantity_usd",
@@ -332,6 +361,7 @@ class BriefCheckTests(unittest.TestCase):
             self.assertEqual(kind(name), brief_check.USD, name)
         for name in ("base_unit_value_usd", "unit_value_usd", "world_unit_value_usd"):
             self.assertEqual(kind(name), brief_check.UNIT_VALUE, name)
+        self.assertEqual(kind("unit_value_change_pct"), brief_check.PCT)
         self.assertEqual(kind("share_change_from_own_pp"), brief_check.PP)
         self.assertEqual(kind("realized_duty_rate"), brief_check.PCT)
 

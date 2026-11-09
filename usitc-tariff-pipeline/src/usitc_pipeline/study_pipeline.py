@@ -49,6 +49,12 @@ from . import calculations as calculation_module
 from . import charts as chart_module
 from . import features as feature_module
 from . import flags as flag_module
+from . import next_steps as next_step_module
+from . import product_hierarchy as product_hierarchy_module
+from . import proxy_notes as proxy_note_module
+from . import registry as registry_module
+from . import tariff_snapshot as tariff_snapshot_module
+from . import tariff_snapshot_adapter as tariff_snapshot_adapter_module
 from .config import ResearchConfig
 from .dataweb import cached_metadata, file_sha256, snapshot_paths
 from .normalize import SECOND_QUANTITY_COLUMNS, normalize_dataweb_files
@@ -61,6 +67,7 @@ from .plan import (
     plan_directory,
     query_through,
     timeline_records,
+    drilldown_release_metadata_sha256,
     drilldown_structure_sha256,
 )
 from .report import build_findings, render_report
@@ -79,7 +86,7 @@ from . import timeline as timeline_module
 from . import drilldown as drilldown_module
 
 
-ANALYSIS_SCHEMA_VERSION = 2
+ANALYSIS_SCHEMA_VERSION = 4
 CORE_OUTPUTS = (
     "trade_tidy",
     "trade_panel",
@@ -88,20 +95,24 @@ CORE_OUTPUTS = (
     "scope_series",
     "world_check",
     "coverage_audit",
+    "proxy_notes",
     "findings",
 )
 OPTIONAL_OUTPUTS = ("product_reallocation", "origin_change", "monthly_panel", "event_metrics")
 # Outputs of opt-in study features.  They appear in the manifest only when the
 # study turns the feature on, so default studies keep their manifest shape.
 FEATURE_OUTPUTS = (
-    "tariff_timeline", "focal_split", "segment_series", "quantity_check", "drilldown_menu", "heading_map",
-    "share_decomposition", "calculations", "anomaly_flags", "mention_list", "window_candidates",
+    "tariff_timeline", "tariff_snapshot", "focal_split", "segment_series", "quantity_check", "drilldown_menu", "product_hierarchy_matrix", "heading_map",
+    "share_decomposition", "calculations", "anomaly_flags", "mention_list", "window_candidates", "next_steps",
 )
 INTERPRETATION_BOUNDARIES = [
-    "Country or area of origin is not value-added origin.",
+    "Country or area of origin is the origin reported to U.S. Customs; it is not value-added origin, fab location or firm dependence.",
     "A gaining source does not prove direct relocation from the focal origin.",
     "Policy-aligned timing is descriptive unless a causal design is added.",
     "Realized duty (calculated duty / customs value) is not the statutory tariff rate.",
+    "The HTS tariff-treatment snapshot is non-binding research, not a CBP classification ruling or entry liquidation.",
+    "Unit value (customs value / reported quantity) is a product-mix proxy, not a transaction price, company ASP or per-capacity price.",
+    "HTS10 product share is a share of U.S. import customs value inside the parent HTS6, not market share or global capacity.",
 ]
 
 
@@ -117,6 +128,7 @@ class StudyContext:
     raw_paths: tuple[Path, ...]
     metadata_paths: tuple[Path, ...]
     world_paths: tuple[Path, ...]
+    product_mix_paths: tuple[Path, ...]
     output_dir: Path
     gate: dict[str, Any] = field(default_factory=dict)
 
@@ -223,16 +235,20 @@ def load_study_context(config: ResearchConfig, study_path: str | Path) -> StudyC
     raw_paths: list[Path] = []
     metadata_paths: list[Path] = []
     world_paths: list[Path] = []
+    product_mix_paths: list[Path] = []
     for item in items:
         stem = str((item or {}).get("cache_stem", ""))
         if stem not in jobs or stem in seen:
             raise ScopeGateError(f"Unknown or repeated acquisition cache_stem: {stem!r}")
         seen.add(stem)
         raw_path, metadata_path = _verify_snapshot(root, item, jobs[stem], scope_sha256=scope.scope_sha256)
-        raw_paths.append(raw_path)
         metadata_paths.append(metadata_path)
-        if not jobs[stem]["break_out_origins"]:
-            world_paths.append(raw_path)
+        if jobs[stem].get("purpose", "scope") == "product_mix":
+            product_mix_paths.append(raw_path)
+        else:
+            raw_paths.append(raw_path)
+            if not jobs[stem]["break_out_origins"]:
+                world_paths.append(raw_path)
     return StudyContext(
         study=study,
         scope=scope,
@@ -242,6 +258,7 @@ def load_study_context(config: ResearchConfig, study_path: str | Path) -> StudyC
         raw_paths=tuple(raw_paths),
         metadata_paths=tuple(metadata_paths),
         world_paths=tuple(world_paths),
+        product_mix_paths=tuple(product_mix_paths),
         output_dir=run_dir / f"analysis-{study.study_sha256[:12]}",
         gate={
             "mode": "study",
@@ -333,6 +350,7 @@ def load_replay_context(config: ResearchConfig, replay_path: str | Path) -> Stud
         raw_paths=tuple(raw_paths),
         metadata_paths=tuple(metadata_paths),
         world_paths=tuple(world_paths),
+        product_mix_paths=(),
         output_dir=output_dir,
         gate={
             "mode": "legacy_replay",
@@ -636,6 +654,60 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
     included_codes = sorted({line.hts_code for line in scope.included})
     features: dict[str, Any] = {}
     feature_written: dict[str, Path] = {}
+    timeline_filter: dict[str, Any] | None = None
+    tariff_registry_inputs: list[dict[str, str]] = []
+    tariff_snapshot_inputs: list[dict[str, str]] = []
+    product_mix_structure_inputs: list[dict[str, str]] = []
+    product_mix_structure: list[dict[str, Any]] | None = None
+    if study.product_mix:
+        product_mix_structure_relative = (
+            study.product_mix.structure or study.drilldown_structure
+        )
+        product_mix_metadata_relative = (
+            study.product_mix.release_metadata or study.drilldown_release_metadata
+        )
+        if not product_mix_structure_relative or not product_mix_metadata_relative:
+            raise ScopeGateError("The product-mix HTS structure inputs are incomplete")
+        product_mix_structure_path = root / product_mix_structure_relative
+        product_mix_metadata_path = root / product_mix_metadata_relative
+        structure_hash = file_sha256(product_mix_structure_path)
+        metadata_hash = file_sha256(product_mix_metadata_path)
+        if structure_hash != study.product_mix.structure_sha256:
+            raise ScopeGateError(
+                "The product-mix HTS structure file changed while the study was running; run the stage again."
+            )
+        if metadata_hash != study.product_mix.release_metadata_sha256:
+            raise ScopeGateError(
+                "The product-mix HTS release metadata changed while the study was running; run the stage again."
+            )
+        product_mix_structure_inputs = [
+            {
+                "path": product_mix_structure_path.relative_to(root).as_posix(),
+                "sha256": structure_hash,
+            },
+            {
+                "path": product_mix_metadata_path.relative_to(root).as_posix(),
+                "sha256": metadata_hash,
+            },
+        ]
+        try:
+            product_mix_structure = drilldown_module.read_structure(product_mix_structure_path)
+        except drilldown_module.DrilldownError as exc:
+            raise ValidationError(str(exc)) from exc
+    registry_directory = root / "config" / "tariff_registry"
+    registry: registry_module.Registry | None = None
+    if study.timeline_file or study.tariff_snapshot:
+        try:
+            registry = registry_module.load_registry(registry_directory)
+        except registry_module.RegistryError as exc:
+            raise ValidationError(str(exc)) from exc
+        registry_names = ["sources.csv", "measures.csv", "coverage.csv"]
+        if study.tariff_snapshot:
+            registry_names.append("treatment_rules.csv")
+        tariff_registry_inputs = [
+            {"path": path.relative_to(root).as_posix(), "sha256": file_sha256(path)}
+            for path in (registry_directory / name for name in registry_names)
+        ]
     if study.timeline_file:
         records = timeline_records(config, study)
         if canonical_sha256(records) != study.timeline_records_sha256:
@@ -645,9 +717,29 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
             timeline_module.check_codes(rows, included_codes)
         except timeline_module.TimelineError as exc:
             raise ValidationError(str(exc)) from exc
-        features["timeline"] = timeline_module.annotate(rows)
-        pd.DataFrame(features["timeline"]).to_csv(tables / "tariff_timeline.csv", index=False)
+        annotated = timeline_module.annotate(rows)
+        assert registry is not None
+        applicable, excluded = registry_module.resolve_timeline_applicability(
+            registry, annotated, included_codes, focal_origin=study.focal_origin
+        )
+        features["timeline"] = applicable
+        timeline_columns = [
+            *timeline_module.TIMELINE_COLUMNS,
+            "layer", "primary_source", "user_checked", "needs_check",
+            "coverage", "registry_measure_ids", "coverage_evidence",
+        ]
+        pd.DataFrame(applicable, columns=timeline_columns).to_csv(tables / "tariff_timeline.csv", index=False)
         feature_written["tariff_timeline"] = tables / "tariff_timeline.csv"
+        excluded_by_coverage: dict[str, int] = {}
+        for row in excluded:
+            coverage_value = str(row.get("coverage") or "unresolved")
+            excluded_by_coverage[coverage_value] = excluded_by_coverage.get(coverage_value, 0) + 1
+        timeline_filter = {
+            "included": len(applicable),
+            "excluded": len(excluded),
+            "excluded_by_coverage": excluded_by_coverage,
+            "rule": "Only verified registry coverage=applies rows enter product tariff outputs; MFN base-rate rows are retained.",
+        }
     if study.drilldown_structure:
         if drilldown_structure_sha256(config, study) != study.drilldown_structure_sha256:
             raise ScopeGateError("The drill-down HTS structure file changed while the study was running; run the stage again.")
@@ -655,6 +747,114 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
             structure = drilldown_module.read_structure(root / study.drilldown_structure)
         except drilldown_module.DrilldownError as exc:
             raise ValidationError(str(exc)) from exc
+        if study.tariff_snapshot:
+            snapshot_spec = study.tariff_snapshot
+            structure_path = root / study.drilldown_structure
+            release_metadata_path = root / str(study.drilldown_release_metadata)
+            if (
+                drilldown_release_metadata_sha256(config, study)
+                != study.drilldown_release_metadata_sha256
+            ):
+                raise ScopeGateError(
+                    "The HTS release metadata changed while the study was running; run the stage again."
+                )
+            tariff_snapshot_inputs = [
+                {"path": structure_path.relative_to(root).as_posix(), "sha256": file_sha256(structure_path)},
+                {
+                    "path": release_metadata_path.relative_to(root).as_posix(),
+                    "sha256": file_sha256(release_metadata_path),
+                },
+            ]
+            try:
+                release_metadata = tariff_snapshot_adapter_module.load_structure_release_metadata(
+                    release_metadata_path,
+                    structure_path=structure_path,
+                    expected_release_id=snapshot_spec.hts_release_id,
+                    expected_effective_date=snapshot_spec.hts_release_date,
+                )
+                snapshot_day = date.fromisoformat(snapshot_spec.entry_date)
+                active_lines = [
+                    line for line in scope.included
+                    if line.valid_from <= snapshot_day <= line.valid_to
+                ]
+                tariff_snapshot_adapter_module.validate_active_scope_release(
+                    release_metadata["release_id"],
+                    (line.hts_release for line in active_lines),
+                    entry_date=snapshot_spec.entry_date,
+                )
+                structure_inputs = tariff_snapshot_adapter_module.structure_snapshot_inputs(
+                    structure,
+                    parent_hts6=sorted({line.hts_code[:6] for line in scope.included}),
+                    classification_release=release_metadata["release_id"],
+                    release_effective_from=release_metadata["effective_date"],
+                    source_citation=release_metadata["source_url"],
+                    source_sha256=release_metadata["source_sha256"],
+                )
+                active_prefixes = sorted({
+                    line.hts_code
+                    for line in active_lines
+                })
+                if not active_prefixes:
+                    raise ValidationError(
+                        f"tariff_snapshot.entry_date {snapshot_spec.entry_date} is outside every approved scope line's validity window"
+                    )
+                structure_products = list(structure_inputs["products"])
+                filtered_products = [
+                    row for row in structure_products
+                    if any(str(row.get("hts", "")).startswith(prefix) for prefix in active_prefixes)
+                ]
+                missing_prefixes = [
+                    prefix for prefix in active_prefixes
+                    if len(prefix) > 6 and not any(str(row.get("hts", "")).startswith(prefix) for row in filtered_products)
+                ]
+                if missing_prefixes:
+                    raise ValidationError(
+                        "The supplied HTS structure does not contain the approved product lines active on the snapshot date: "
+                        + ", ".join(missing_prefixes)
+                        + ". Use the matching archived HTS structure; do not back-cast the current release."
+                    )
+                structure_inputs = {**structure_inputs, "products": filtered_products}
+                snapshot_rows: list[dict[str, Any]] = []
+                snapshot_statuses: dict[str, str] = {}
+                for origin in snapshot_spec.origins:
+                    snapshot = tariff_snapshot_adapter_module.build_registry_tariff_snapshot(
+                        structure_inputs=structure_inputs,
+                        registry_directory=registry_directory,
+                        origin=origin,
+                        entry_date=snapshot_spec.entry_date,
+                        context={
+                            "rate_column": snapshot_spec.rate_column,
+                            "preference_claim": snapshot_spec.preference_claim,
+                            "entry_type": snapshot_spec.entry_type,
+                            "chapter_98": snapshot_spec.chapter_98,
+                            "quota_or_trq": snapshot_spec.quota_or_trq,
+                            "ad_cvd": snapshot_spec.ad_cvd,
+                            "firm_specific_rate": snapshot_spec.firm_specific_rate,
+                            "requires_binding_classification": snapshot_spec.requires_binding_classification,
+                        },
+                    )
+                    snapshot_statuses[origin] = str(snapshot["snapshot_status"])
+                    for row in tariff_snapshot_module.snapshot_table_rows(snapshot):
+                        snapshot_rows.append(
+                            {
+                                **row,
+                                "snapshot_status": snapshot["snapshot_status"],
+                                "classification_release": structure_inputs["classification_release"],
+                                "hts_release_date": release_metadata["effective_date"],
+                                "input_set_sha256": snapshot["input_set_sha256"],
+                                "limits": " | ".join(snapshot.get("limits") or []),
+                            }
+                        )
+            except (
+                tariff_snapshot_adapter_module.TariffSnapshotAdapterError,
+                tariff_snapshot_module.TariffSnapshotError,
+            ) as exc:
+                raise ValidationError(str(exc)) from exc
+            snapshot_table = pd.DataFrame(snapshot_rows)
+            snapshot_table.to_csv(tables / "tariff_treatment_snapshot.csv", index=False)
+            feature_written["tariff_snapshot"] = tables / "tariff_treatment_snapshot.csv"
+            features["tariff_snapshot"] = _json_ready(snapshot_rows)
+            features["tariff_snapshot_statuses"] = snapshot_statuses
         years = [span for span in (study.annual, study.monthly) if span is not None]
         menu = drilldown_module.build_menu(
             structure,
@@ -672,6 +872,70 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
         pd.DataFrame(menu, columns=list(drilldown_module.MENU_COLUMNS)).to_csv(tables / "drilldown_menu.csv", index=False)
         feature_written["drilldown_menu"] = tables / "drilldown_menu.csv"
         features["drilldown_menu"] = _json_ready(menu)
+
+        full_years = scope_series[
+            scope_series["frequency"].astype(str).eq("annual")
+            & scope_series["period_status"].astype(str).eq("full_year")
+        ]
+        latest_full_period = str(full_years["period"].max()) if not full_years.empty else None
+        product_mix_trade = (
+            normalize_dataweb_files(context.product_mix_paths)
+            if study.product_mix and context.product_mix_paths
+            else None
+        )
+        product_mix_period = str(study.product_mix.period) if study.product_mix else latest_full_period
+        if study.product_mix and product_mix_period not in set(full_years["period"].astype(str)):
+            raise ValidationError(
+                f"product_mix.period {product_mix_period} is not a complete annual observation in the parent HTS6 study"
+            )
+        hierarchy_frames: list[pd.DataFrame] = []
+        for parent in sorted({line.hts_code[:6] for line in scope.included}):
+            prefixes = sorted({line.hts_code for line in scope.included if line.hts_code.startswith(parent)})
+            releases = sorted({line.hts_release for line in scope.included if line.hts_code.startswith(parent)})
+            denominator_rows = world_tidy[
+                world_tidy["frequency"].astype(str).eq("annual")
+                & world_tidy["period"].astype(str).eq(str(product_mix_period or ""))
+                & world_tidy["hts_code"].astype(str).str.startswith(parent)
+                & world_tidy["origin_name"].astype(str).str.casefold().eq("world")
+            ]
+            parent_denominator = (
+                float(pd.to_numeric(denominator_rows["customs_value_usd"], errors="coerce").sum(min_count=1))
+                if not denominator_rows.empty
+                else None
+            )
+            try:
+                matrix = product_hierarchy_module.build_product_hierarchy_matrix(
+                    product_mix_structure if study.product_mix else structure,
+                    parent_hts6=parent,
+                    trade_rows=product_mix_trade,
+                    full_period=product_mix_period,
+                    independent_hts6_world_value_usd=parent_denominator,
+                    independent_hts6_world_period=product_mix_period,
+                    tariff_treatments=[
+                        row for row in (features.get("tariff_snapshot") or [])
+                        if str(row.get("origin", "")).casefold() == study.focal_origin.casefold()
+                    ],
+                    classification_release=(
+                        study.product_mix.hts_release_id if study.product_mix else "; ".join(releases)
+                    ),
+                    continuity_status="verified" if context.gate.get("continuity_verified") else "unverified",
+                    focal_origin=study.focal_origin,
+                    parent_description=scope.product_name if len({line.hts_code[:6] for line in scope.included}) == 1 else "",
+                )
+            except product_hierarchy_module.ProductHierarchyError as exc:
+                raise ValidationError(str(exc)) from exc
+            if any(len(prefix) > 6 for prefix in prefixes):
+                codes = matrix["hts10_code"].astype("string").str.replace("<NA>", "", regex=False)
+                matrix = matrix[
+                    [any(str(code).startswith(prefix) for prefix in prefixes) for code in codes]
+                ].reset_index(drop=True)
+            hierarchy_frames.append(matrix)
+        hierarchy = pd.concat(hierarchy_frames, ignore_index=True) if hierarchy_frames else pd.DataFrame(
+            columns=product_hierarchy_module.MATRIX_COLUMNS
+        )
+        hierarchy.to_csv(tables / "product_hierarchy_matrix.csv", index=False)
+        feature_written["product_hierarchy_matrix"] = tables / "product_hierarchy_matrix.csv"
+        features["product_hierarchy_matrix"] = _json_ready(hierarchy.to_dict(orient="records"))
     if study.hts4_context:
         context_jobs = context.plan["context"]["jobs"]
         cached = [job for job in context_jobs if cached_metadata(config, job["cache_stem"], job["payload_sha256"])]
@@ -748,6 +1012,35 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
         frame.to_csv(tables / f"{name}.csv", index=False)
         feature_written[name] = tables / f"{name}.csv"
 
+    next_steps = next_step_module.build_next_steps(
+        tariff_snapshot=features.get("tariff_snapshot"),
+        scope_hts_level=scope.hts_level,
+        product_hierarchy=features.get("product_hierarchy_matrix"),
+        anomaly_flags=brief_tables.get("anomaly_flags"),
+        continuity_verified=bool(context.gate.get("continuity_verified")),
+        industry_context_mode=study.industry_context_mode,
+    )
+    next_steps.to_csv(tables / "next_steps.csv", index=False)
+    feature_written["next_steps"] = tables / "next_steps.csv"
+    features["next_steps"] = _json_ready(next_steps.to_dict(orient="records"))
+
+    proxy_notes = proxy_note_module.build_proxy_notes(
+        quantity_basis=study.quantity_basis,
+        quantity_unit=quantity_unit,
+        second_quantity_unit=scope.second_unit if both else None,
+        data_through=data_through,
+        hts_releases=[line.hts_release for line in scope.included],
+        continuity_verified=bool(context.gate.get("continuity_verified")),
+        include_product_mix_share=any(
+            str(row.get("product_share_status", "")).casefold() == "measured"
+            for row in (features.get("product_hierarchy_matrix") or [])
+        ),
+        product_mix_period=(study.product_mix.period if study.product_mix else None),
+        product_mix_release=(study.product_mix.hts_release_id if study.product_mix else None),
+    )
+    proxy_notes.to_csv(tables / "proxy_notes.csv", index=False)
+    features["proxy_notes"] = _json_ready(proxy_notes.to_dict(orient="records"))
+
     written: dict[str, Path | None] = {name: None for name in (*CORE_OUTPUTS, *OPTIONAL_OUTPUTS)}
     for name, frame in (
         ("origin_series", origin_series),
@@ -759,6 +1052,7 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
         frame.to_csv(tables / f"{name}.csv", index=False)
         written[name] = tables / f"{name}.csv"
     written["trade_tidy"], written["trade_panel"] = processed / "trade_tidy.csv", processed / "trade_panel.csv"
+    written["proxy_notes"] = tables / "proxy_notes.csv"
     if not changes.empty:
         changes.to_csv(tables / "origin_change.csv", index=False)
         written["origin_change"] = tables / "origin_change.csv"
@@ -842,7 +1136,11 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
         "rows_excluded_after_data_through": int((~analysis_mask).sum()),
         "inputs": [
             {"kind": kind, "path": path.relative_to(root).as_posix(), "sha256": file_sha256(path)}
-            for kind, paths in (("raw_snapshot", context.raw_paths), ("snapshot_metadata", context.metadata_paths))
+            for kind, paths in (
+                ("raw_snapshot", context.raw_paths),
+                ("product_mix_snapshot", context.product_mix_paths),
+                ("snapshot_metadata", context.metadata_paths),
+            )
             for path in paths
         ],
         "validation": validation,
@@ -851,6 +1149,23 @@ def _analyze(config: ResearchConfig, context: StudyContext) -> dict[str, Any]:
             **{name: _output_record(path, out) for name, path in feature_written.items()},
         },
         "optional_skips": skips,
+        "tariff_timeline_filter": timeline_filter,
+        "tariff_registry_inputs": tariff_registry_inputs,
+        "tariff_registry_sha256": canonical_sha256(tariff_registry_inputs) if tariff_registry_inputs else None,
+        "tariff_snapshot_inputs": tariff_snapshot_inputs,
+        "tariff_snapshot_input_sha256": (
+            canonical_sha256([*tariff_registry_inputs, *tariff_snapshot_inputs])
+            if tariff_snapshot_inputs else None
+        ),
+        **(
+            {
+                "product_mix_structure_inputs": product_mix_structure_inputs,
+                "product_mix_structure_input_sha256": canonical_sha256(
+                    product_mix_structure_inputs
+                ),
+            }
+            if study.product_mix else {}
+        ),
         "interpretation_boundaries": INTERPRETATION_BOUNDARIES,
     }
     _write_json(out / "analysis_manifest.json", manifest)
@@ -883,7 +1198,10 @@ def _verified_analysis(config: ResearchConfig, context: StudyContext) -> dict[st
     input_records = manifest.get("inputs")
     if not isinstance(input_records, list):
         raise ScopeGateError("Analysis manifest inputs must be a complete list")
-    expected_inputs = {path.relative_to(root).as_posix() for path in (*context.raw_paths, *context.metadata_paths)}
+    expected_inputs = {
+        path.relative_to(root).as_posix()
+        for path in (*context.raw_paths, *context.product_mix_paths, *context.metadata_paths)
+    }
     recorded_inputs = {str(item.get("path", "")) for item in input_records if isinstance(item, dict)}
     if recorded_inputs != expected_inputs or len(input_records) != len(expected_inputs):
         raise ScopeGateError("Analysis manifest input set does not match the exact acquisition snapshots and metadata")
@@ -891,6 +1209,87 @@ def _verified_analysis(config: ResearchConfig, context: StudyContext) -> dict[st
         path = _inside(root, str(item.get("path", "")), label="analysis input")
         if file_sha256(path) != item.get("sha256"):
             raise ScopeGateError(f"Analysis input changed after the manifest was written: {path}")
+    registry_inputs = manifest.get("tariff_registry_inputs")
+    if not isinstance(registry_inputs, list):
+        raise ScopeGateError("Analysis manifest tariff_registry_inputs must be a complete list")
+    registry_names = ["sources.csv", "measures.csv", "coverage.csv"]
+    if context.study.tariff_snapshot:
+        registry_names.append("treatment_rules.csv")
+    expected_registry = {
+        f"config/tariff_registry/{name}" for name in registry_names
+    } if (context.study.timeline_file or context.study.tariff_snapshot) else set()
+    recorded_registry = {str(item.get("path", "")) for item in registry_inputs if isinstance(item, dict)}
+    if recorded_registry != expected_registry or len(registry_inputs) != len(expected_registry):
+        raise ScopeGateError("Analysis manifest tariff registry input set does not match the current study")
+    for item in registry_inputs:
+        path = _inside(root, str(item.get("path", "")), label="tariff registry input")
+        if file_sha256(path) != item.get("sha256"):
+            raise ScopeGateError(f"Tariff registry input changed after the manifest was written: {path}")
+    expected_registry_sha = canonical_sha256(registry_inputs) if registry_inputs else None
+    if manifest.get("tariff_registry_sha256") != expected_registry_sha:
+        raise ScopeGateError("Analysis manifest tariff_registry_sha256 does not match its input records")
+    snapshot_inputs = manifest.get("tariff_snapshot_inputs")
+    if not isinstance(snapshot_inputs, list):
+        raise ScopeGateError("Analysis manifest tariff_snapshot_inputs must be a complete list")
+    expected_snapshot_paths = {
+        context.study.drilldown_structure,
+        context.study.drilldown_release_metadata,
+    } if context.study.tariff_snapshot else set()
+    recorded_snapshot_paths = {
+        str(item.get("path", "")) for item in snapshot_inputs if isinstance(item, dict)
+    }
+    if recorded_snapshot_paths != expected_snapshot_paths or len(snapshot_inputs) != len(expected_snapshot_paths):
+        raise ScopeGateError("Analysis manifest tariff snapshot input set does not match the current study")
+    for item in snapshot_inputs:
+        path = _inside(root, str(item.get("path", "")), label="tariff snapshot input")
+        if file_sha256(path) != item.get("sha256"):
+            raise ScopeGateError(f"Tariff snapshot input changed after the manifest was written: {path}")
+    expected_snapshot_sha = (
+        canonical_sha256([*registry_inputs, *snapshot_inputs]) if snapshot_inputs else None
+    )
+    if manifest.get("tariff_snapshot_input_sha256") != expected_snapshot_sha:
+        raise ScopeGateError("Analysis manifest tariff_snapshot_input_sha256 does not match its input records")
+    product_mix_structure_inputs = manifest.get("product_mix_structure_inputs")
+    if context.study.product_mix:
+        if not isinstance(product_mix_structure_inputs, list):
+            raise ScopeGateError(
+                "Analysis manifest product_mix_structure_inputs must be a complete list"
+            )
+        expected_product_mix_paths = {
+            context.study.product_mix.structure or context.study.drilldown_structure,
+            context.study.product_mix.release_metadata or context.study.drilldown_release_metadata,
+        }
+        recorded_product_mix_paths = {
+            str(item.get("path", ""))
+            for item in product_mix_structure_inputs
+            if isinstance(item, dict)
+        }
+        if (
+            None in expected_product_mix_paths
+            or recorded_product_mix_paths != expected_product_mix_paths
+            or len(product_mix_structure_inputs) != len(expected_product_mix_paths)
+        ):
+            raise ScopeGateError(
+                "Analysis manifest product-mix structure input set does not match the current study"
+            )
+        for item in product_mix_structure_inputs:
+            path = _inside(root, str(item.get("path", "")), label="product-mix structure input")
+            if file_sha256(path) != item.get("sha256"):
+                raise ScopeGateError(
+                    f"Product-mix structure input changed after the manifest was written: {path}"
+                )
+        expected_product_mix_sha = canonical_sha256(product_mix_structure_inputs)
+        if manifest.get("product_mix_structure_input_sha256") != expected_product_mix_sha:
+            raise ScopeGateError(
+                "Analysis manifest product_mix_structure_input_sha256 does not match its input records"
+            )
+    elif (
+        product_mix_structure_inputs not in (None, [])
+        or manifest.get("product_mix_structure_input_sha256") is not None
+    ):
+        raise ScopeGateError(
+            "Analysis manifest has product-mix structure inputs for a study without product_mix"
+        )
     outputs = manifest.get("outputs")
     base = {*CORE_OUTPUTS, *OPTIONAL_OUTPUTS}
     if not isinstance(outputs, dict) or not base <= set(outputs) <= base | set(FEATURE_OUTPUTS):
@@ -924,7 +1323,7 @@ def _render_charts(config: ResearchConfig, context: StudyContext) -> list[str]:
         name: pd.read_csv(out / outputs[name]["path"], dtype={"period": "string", "hts_code": "string", "heading": "string", "hts6": "string"})
         for name in (
             "scope_series", "display_series", "world_check", "origin_change", "product_reallocation", "monthly_panel",
-            "tariff_timeline", "segment_series", "heading_map",
+            "tariff_timeline", "segment_series", "heading_map", "product_hierarchy_matrix",
         )
         if outputs.get(name)
     }

@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "artifact_type": "hts_current_release_check",
+  "checked_at_utc": "2026-11-09T03:27:22.808640+00:00",
+  "as_of": "2026-11-08",
+  "scope_path": "<project_root>\\scopes\\memory-integrated-circuits\\v1\\scope.csv",
+  "scope_file_sha256": "c3e972361212ac71a8c885e93ba284ad34690283672fc31cb5071f62f12265e4",
+  "endpoint": "https://hts.usitc.gov/reststop/search",
+  "ok": true,
+  "checked": [
+    {
+      "hts_code": "854232",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "scope_description": "Memories",
+      "scope_quantity_unit": "No.",
+      "scope_second_unit": "",
+      "search_url": "https://hts.usitc.gov/reststop/search?keyword=8542.32",
+      "current_line": {
+        "htsno": "8542.32.00",
+        "description": "Memories"
+      },
+      "current_children": [
+        {
+          "htsno": "8542.32.00.02",
+          "description": "Not over 128 megabits",
+          "units": "No."
+        },
+        {
+          "htsno": "8542.32.00.24",
+          "description": "Over 128 megabits but not over 256 megabits",
+          "units": "No."
+        },
+        {
+          "htsno": "8542.32.00.28",
+          "description": "Over 256 megabits but not over 512 megabits",
+          "units": "No."
+        },
+        {
+          "htsno": "8542.32.00.32",
+          "description": "Over 512 megabits but not over 1 gigabit",
+          "units": "No."
+        },
+        {
+          "htsno": "8542.32.00.36",
+          "description": "Over 1 gigabit",
+          "units": "No."
+        },
+        {
+          "htsno": "8542.32.00.41",
+          "description": "Static read-write random access (SRAM)",
+          "units": "No."
+        },
+        {
+          "htsno": "8542.32.00.51",
+          "description": "Electrically erasable programmable read-only memory (EEPROM)",
+          "units": "No."
+        },
+        {
+          "htsno": "8542.32.00.61",
+          "description": "Erasable (except electrically) programmable read-only memory (EPROM)",
+          "units": "No."
+        },
+        {
+          "htsno": "8542.32.00.71",
+          "description": "Other",
+          "units": "No."
+        }
+      ],
+      "findings": []
+    }
+  ],
+  "not_valid_on_as_of": [],
+  "note": "Current release only: not historical evidence and not approval.",
+  "dataweb_token_used": false
+}

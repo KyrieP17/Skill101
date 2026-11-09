@@ -1,0 +1,119 @@
+{
+  "schema_version": 4,
+  "created_at_utc": "2026-11-09T03:26:33.127802+00:00",
+  "source_scope": "scope.csv",
+  "source_file_sha256": "c3e972361212ac71a8c885e93ba284ad34690283672fc31cb5071f62f12265e4",
+  "validation": {
+    "ok": true,
+    "require_approved": true
+  },
+  "scope_id": "memory-integrated-circuits",
+  "scope_version": "1",
+  "product_id": "memory-integrated-circuits",
+  "product_name": "Memory integrated circuits - chip-level proxy",
+  "hts_level": 6,
+  "hts_releases": [
+    "2026HTSRev22"
+  ],
+  "included": [
+    {
+      "hts_code": "854232",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "no.",
+      "hts_release": "2026HTSRev22"
+    }
+  ],
+  "excluded": [
+    {
+      "hts_code": "847330",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "852351",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "854231",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "854233",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "854239",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "2026HTSRev22"
+    },
+    {
+      "hts_code": "854290",
+      "hts_level": 6,
+      "valid_from": "2017-01-01",
+      "valid_to": "2026-12-31",
+      "quantity_unit": "",
+      "hts_release": "2026HTSRev22"
+    }
+  ],
+  "included_codes": [
+    "854232"
+  ],
+  "excluded_codes": [
+    "847330",
+    "852351",
+    "854231",
+    "854233",
+    "854239",
+    "854290"
+  ],
+  "coverage": {
+    "start": "2017-01-01",
+    "end": "2026-12-31",
+    "gaps": []
+  },
+  "quantity_unit": "no.",
+  "quantity_comparable": true,
+  "second_unit": null,
+  "second_units": [],
+  "record_count": 7,
+  "all_records_approved": true,
+  "scope_sha256": "e007c6aadcdb7e2d6811f1e811b721fcc0f3a18c15dc0df3fe257fd7d49680ac",
+  "record_sha256": "0e048850a6432b27eea054bc68e05b674fb6df179017b4d911551df4135645db",
+  "approval": {
+    "method": "chat_confirmation",
+    "procedural_boundary": "user_confirmed_in_chat_agent_ran_scope_approve",
+    "verified_claim": "the agent passed the scope_sha256 prefix the card showed and the user's words of approval",
+    "not_verified": "that the user typed these words; the agent ran scope-approve and recorded them as given",
+    "user_confirmation": "批准",
+    "approval_card_path": "approval-card.json",
+    "approval_card_sha256": "907a2e74049ca3718fbce7d1989c7c975d772f960dbee99e8c9339a01214a58a",
+    "reviewer": "Kyriepan17",
+    "approved_at_utc": "2026-11-09T03:26:33.124959+00:00"
+  },
+  "hts_history": {
+    "status": "unverified",
+    "warning": "连续性未核实: HTS codes were not checked against archived HTS editions for every year",
+    "continuity_verified": false,
+    "acknowledged_unverified": true
+  }
+}

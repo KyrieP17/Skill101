@@ -22,6 +22,7 @@ for entry in (PROJECT_ROOT / "src", TESTS_DIR):
 import test_features  # noqa: E402  (module import, so its tests are not collected twice)
 import test_plan  # noqa: E402
 from usitc_pipeline import drilldown  # noqa: E402
+from usitc_pipeline import tariff_snapshot_adapter  # noqa: E402
 from usitc_pipeline.study import StudyError  # noqa: E402
 
 
@@ -159,6 +160,26 @@ class DrilldownStudyHashTests(test_plan.ProjectTestCase):
         with self.assertRaisesRegex(StudyError, "only structure"):
             self.load_study()
 
+    def test_snapshot_release_metadata_hash_enters_the_study_identity(self) -> None:
+        self.write_structure()
+        metadata = self.root / "config" / "hts_structure.release.json"
+        metadata.write_text('{"version": 1}', encoding="utf-8")
+        snapshot = (
+            '\n[drilldown]\nstructure = "config/hts_structure.json"\n'
+            'release_metadata = "config/hts_structure.release.json"\n'
+            '\n[tariff_snapshot]\nentry_date = "2025-11-01"\n'
+            'hts_release_id = "2022 Basic (synthetic)"\nhts_release_date = "2025-01-01"\n'
+        )
+        self.rewrite_study(test_plan.STUDY_TOML + snapshot)
+        first = self.load_study()
+        metadata.write_text('{"version": 2}', encoding="utf-8")
+        second = self.load_study()
+        self.assertNotEqual(first.study_sha256, second.study_sha256)
+
+        metadata.unlink()
+        with self.assertRaisesRegex(StudyError, "Cannot read drilldown.release_metadata"):
+            self.load_study()
+
 
 class DrilldownEndToEndTests(unittest.TestCase):
     """The offline lithium fixture with [drilldown]: table, manifest entry and report table."""
@@ -186,6 +207,79 @@ class DrilldownEndToEndTests(unittest.TestCase):
         self.assertFalse((out / "tables" / "drilldown_menu.csv").exists())
         manifest = json.loads((out / "analysis_manifest.json").read_text(encoding="utf-8"))
         self.assertNotIn("drilldown_menu", manifest["outputs"])
+
+    def test_snapshot_hierarchy_proxy_notes_and_next_steps_reach_outputs(self) -> None:
+        import csv
+        from hashlib import sha256
+
+        structure_path = self.root / "config" / "hts_structure.json"
+        snapshot_structure = STRUCTURE + [
+            {"htsno": "8507.60.00.20", "general": "", "units": ["No.", "kg"]},
+        ]
+        structure_path.write_text(json.dumps(snapshot_structure), encoding="utf-8")
+        release_metadata_path = self.root / "config" / "hts_structure.release.json"
+        release_metadata_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "release_id": "2022 Basic (synthetic)",
+                    "effective_date": "2025-01-01",
+                    "structure_file": structure_path.name,
+                    "source_url": "https://hts.usitc.gov/reststop/search?keyword=8507.60",
+                    "source_sha256": sha256(structure_path.read_bytes()).hexdigest(),
+                }
+            ),
+            encoding="utf-8",
+        )
+        registry_dir = self.root / "config" / "tariff_registry"
+        registry_dir.mkdir(parents=True, exist_ok=True)
+        rules = [
+            {"measure_id": "duty-a", "effective_from": "2019-09-01", "effective_to": "",
+             "action": "add", "rate_text": "+10%", "rate_type": "ad_valorem", "stack_group": "s301",
+             "supersedes": "", "layer": "Section 301", "heading": "9903.88.15", "status": "verified",
+             "source_ids": "fr-1", "notes": "synthetic"},
+            {"measure_id": "duty-b", "effective_from": "2024-09-27", "effective_to": "",
+             "action": "replace", "rate_text": "+25%", "rate_type": "ad_valorem", "stack_group": "s301",
+             "supersedes": "duty-a", "layer": "Section 301", "heading": "9903.91.02", "status": "verified",
+             "source_ids": "fr-1", "notes": "synthetic"},
+            {"measure_id": "country-duty", "effective_from": "2025-02-04", "effective_to": "",
+             "action": "add", "rate_text": "+10%", "rate_type": "ad_valorem", "stack_group": "country",
+             "supersedes": "", "layer": "IEEPA", "heading": "9903.01.20", "status": "verified",
+             "source_ids": "fr-1", "notes": "synthetic"},
+        ]
+        with (registry_dir / "treatment_rules.csv").open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=tariff_snapshot_adapter.TREATMENT_RULE_COLUMNS, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rules)
+        out = self.run_study(
+            '\n[drilldown]\nstructure = "config/hts_structure.json"\n'
+            'release_metadata = "config/hts_structure.release.json"\n'
+            '\n[tariff_snapshot]\nentry_date = "2025-11-01"\n'
+            'hts_release_id = "2022 Basic (synthetic)"\nhts_release_date = "2025-01-01"\n'
+            'origins = ["China"]\nrate_column = "general"\npreference_claim = "none"\nentry_type = "consumption"\n'
+        )
+        snapshot = pd.read_csv(out / "tables" / "tariff_treatment_snapshot.csv", dtype={"hts": str})
+        self.assertEqual(len(snapshot), 2)
+        self.assertEqual(set(snapshot["snapshot_status"]), {"Unresolved"})  # review lacks a lifecycle rule
+        hierarchy = pd.read_csv(out / "tables" / "product_hierarchy_matrix.csv", dtype={"hts10_code": str})
+        self.assertEqual(len(hierarchy), 3)
+        self.assertEqual(set(hierarchy["product_share_status"]), {"unavailable_missing_hts10_trade_rows"})
+        self.assertTrue((out / "tables" / "proxy_notes.csv").is_file())
+        steps = pd.read_csv(out / "tables" / "next_steps.csv")
+        self.assertEqual(steps["action_id"].tolist()[0], "resolve_tariff_treatment_snapshot")
+        manifest = json.loads((out / "analysis_manifest.json").read_text(encoding="utf-8"))
+        self.assertIsNotNone(manifest["outputs"]["tariff_snapshot"])
+        self.assertIsNotNone(manifest["outputs"]["product_hierarchy_matrix"])
+        self.assertEqual(len(manifest["tariff_registry_inputs"]), 4)
+        self.assertEqual(
+            {row["path"] for row in manifest["tariff_snapshot_inputs"]},
+            {"config/hts_structure.json", "config/hts_structure.release.json"},
+        )
+        self.assertEqual(len(manifest["tariff_snapshot_input_sha256"]), 64)
+        report = (out / "report.md").read_text(encoding="utf-8")
+        self.assertIn("HTS 法定关税处理快照", report)
+        self.assertIn("产品层级矩阵", report)
+        self.assertIn("下一步菜单", report)
 
 
 if __name__ == "__main__":

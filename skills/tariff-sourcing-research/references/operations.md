@@ -5,7 +5,7 @@ Read this before running a pipeline command, and when one fails.
 ## Setup
 
 - `scripts/tariff_pipeline.py` finds the project from `--project-root`, else `TARIFF_PIPELINE_ROOT`, else `project_root` in the skill's `config.json`. If none is set or the path is wrong it stops: ask the user for the project folder (and interpreter), then write `config.json`. Never guess a path.
-- Interpreter: `--python`, else `python` in `config.json` (relative to the project), else the project's `.venv`, else the one running the wrapper. `status`, `scope-validate`, `hts-history`, `scope-approve`, `plan` and the gate in `acquire` need only Python 3.11+; downloading needs `requests`; `analyze`, `charts` and `report` need pandas and matplotlib. A new environment: `python -m venv .venv`, then `.venv\Scripts\python -m pip install -r requirements-lock.txt` in the project.
+- Interpreter: `--python`, else optional `python` in `config.json` (relative to the project), else the project's `.venv`, else the one running the wrapper. The example config omits `python`, so the wrapper auto-detects `.venv/Scripts/python.exe` on Windows or `.venv/bin/python` on macOS/Linux. `status`, `scope-validate`, `hts-history`, `scope-approve`, `plan` and the gate in `acquire` need only Python 3.11+; downloading needs `requests`; `analyze`, `charts` and `report` need pandas and matplotlib. A new environment: `python -m venv .venv`, then `.venv\Scripts\python -m pip install -r requirements-lock.txt` (PowerShell) or `.venv/bin/python -m pip install -r requirements-lock.txt` (bash/zsh) in the project.
 - `--dry-run` prints the resolved command and whether the token would be forwarded, never the token itself.
 
 ## Commands
@@ -26,6 +26,20 @@ python scripts\tariff_pipeline.py brief-check --study config\studies\<study_id>.
 python scripts\tariff_pipeline.py report-pdf --study config\studies\<study_id>.toml   # after brief.md: final_report.pdf
 python scripts\tariff_pipeline.py registry-check [--study config\studies\<study_id>.toml]   # timeline rows against the tariff registry, read-only
 python scripts\tariff_pipeline.py test                       # the project's unit tests
+```
+
+macOS / Linux uses the same commands with `/` paths. For example:
+
+```bash
+python scripts/tariff_pipeline.py status
+python scripts/tariff_pipeline.py plan --study config/studies/<study_id>.toml
+printf 'DataWeb token: '
+IFS= read -rs DATAWEB_TOKEN
+printf '\n'
+export DATAWEB_TOKEN
+python scripts/tariff_pipeline.py acquire --plan outputs/runs/<study_id>/plan-<h12>/query_plan.json
+unset DATAWEB_TOKEN
+python scripts/tariff_pipeline.py all --study config/studies/<study_id>.toml
 ```
 
 - `plan` prints the codes queried per period, the job count, `jobs_already_cached` and whether a token is needed. The same inputs give the same `plan_sha256` and directory on any machine, so it is safe to repeat.
@@ -50,6 +64,8 @@ outputs/runs/<study_id>/plan-<h12>/analysis-<h12>/     processed/, tables/, char
 
 Nothing is overwritten: a refresh archives the old snapshot under its checksum, and a changed study writes a new `analysis-<h12>` directory.
 
+Within `tables/`, `tariff_treatment_snapshot.csv` is the explicit entry-context screen, `product_hierarchy_matrix.csv` is HTS6→HTS8→HTS10, `proxy_notes.csv` defines every proxy, and `next_steps.csv` names at most three follow-ups. These are analysis artifacts: none authorizes a new DataWeb download, web search or customs filing.
+
 ## Failure handling
 
 | Symptom | Do |
@@ -63,6 +79,8 @@ Nothing is overwritten: a refresh archives the old snapshot under its checksum, 
 | `hts_current_check.py` exits 1 | Stop, show the findings; a real change means a new scope version |
 | DataWeb error or truncated response | Stop acquisition; never analyze a partial response |
 | An analysis or chart listed as skipped | Not an error: report the skip reason where that result would be |
+| Tariff snapshot says `Unresolved`, `Mixed` or `Conditional` | Preserve the status and exact reasons. Do not collapse it to one rate, use realized duty as a substitute, or broaden authorization to obtain missing entry facts |
+| HTS10 product share says `unavailable_*` | Keep it blank. An HTS6 cache is not a denominator for invented child shares; use the generated next step if the user wants a new HTS10 download |
 | `validate` fails | No deliverable until the failing check is fixed, or scoped out in writing |
 
 ## Extending safely
@@ -70,5 +88,6 @@ Nothing is overwritten: a refresh archives the old snapshot under its checksum, 
 - New product or code set: a new scope version plus a new study, never an edit of an approved scope.
 - New years: edit `[periods]`, re-plan, acquire; cached payloads are reused.
 - Origins, comparison, windows, events: edit the study only (see [study-design](study-design.md)).
+- Tariff snapshot entry/release dates, entry context, or `industry_context.mode`: edit the study and re-run analysis; no DataWeb download is implied. A historical entry date needs a matching archived HTS structure, never today's structure backcast.
 - A new event marker: add a row to `config/policy_events.csv` (`event_date,event_id,event_label,event_type,status,scope,notes`) with its status (implemented, announced_not_imposed, ...).
 - A new metric, measure or rule: change the pipeline with a unit test. Report and slide builders only format validated outputs.

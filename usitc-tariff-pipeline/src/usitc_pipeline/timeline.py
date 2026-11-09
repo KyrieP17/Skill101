@@ -43,7 +43,7 @@ TIMELINE_COLUMNS = (
 )
 DATE_TYPES = ("announced", "effective")
 REVIEW_STATUSES = ("draft", "user_checked")
-PRIMARY_SOURCE_HOSTS = ("hts.usitc.gov", "federalregister.gov", "ustr.gov", "cbp.gov")
+PRIMARY_SOURCE_HOSTS = ("usitc.gov", "federalregister.gov", "ustr.gov", "cbp.gov")
 CODE_PATTERN = re.compile(r"\d{8}(\d{2})?")
 
 
@@ -52,7 +52,7 @@ class TimelineError(ValueError):
 
 
 def is_primary_source(url: str) -> bool:
-    """True when ``url`` is on the HTS archive, the Federal Register, USTR or CBP."""
+    """True for official USITC, Federal Register, USTR, or CBP URLs."""
 
     host = (urlparse(str(url or "").strip()).hostname or "").lower()
     return any(host == name or host.endswith("." + name) for name in PRIMARY_SOURCE_HOSTS)

@@ -48,3 +48,22 @@ s122-surcharge-ended,8507.60,covered,hts-2026rev22-ch99 note 2(aa)(ii)-(iv),待�
 s301-forced-labor,8517.13,exempt,hts-2026rev22-ch99 note 52(b),verified,9903.05.86 例外清单有 8517.13.00
 s301-forced-labor,8471.30,exempt,hts-2026rev22-ch99 note 52(b),verified,9903.05.86 例外清单有 8471.30.01
 s301-forced-labor,8507.60,covered,hts-2026rev22-ch99 note 52(b)-(d),待核对,不在 52(b)、(c) 里，只在 (d) 民用航空器清单里；52(e)-(k) 没有逐条读
+s301-list2,8542.32,covered,fr-83-40823 Annex A,verified,Annex A lists 8542.32.00 under 9903.88.02 at 25%
+s301-review-report,8542.32,covered,fr-89-76581 Annex A,verified,Four-year review final modification lists 8542.32.00 among semiconductors raised to 50% in 2025
+s301-semiconductors-50,8542.32,covered,hts-2026rev22-ch99 note 31(f)(14),verified,9903.91.05 applies to 8542.32.00 from 2025-01-01
+ieepa-fentanyl-china,8542.32,covered,hts-2026rev22-ch99 note 2(s),verified,China and Hong Kong goods generally covered；no product exception for 8542.32
+ieepa-fentanyl-china-20,8542.32,covered,hts-2026rev22-ch99 note 2(s)-(u),verified,Reciprocal-duty semiconductor exceptions do not exempt the separate synthetic-opioid-policy heading 9903.01.24
+ieepa-usmca-exempt,8542.32,covered,fr-90-11785; fr-90-11787,verified,USMCA treatment is origin and entry-program dependent rather than a product-code exclusion
+ieepa-reciprocal-baseline,8542.32,exempt,fr-90-15041 Annex II,verified,EO 14257 Annex II excludes semiconductor heading 8542
+ieepa-reciprocal-china-84,8542.32,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 exception includes 8542.32.00
+ieepa-reciprocal-china-125,8542.32,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 exception includes 8542.32.00
+ieepa-reciprocal-others-paused,8542.32,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 exception includes 8542.32.00
+ieepa-reciprocal-electronics-exception,8542.32,covered,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,Exception list expressly includes 8542.32.00；measure date remains 待核对 in measures.csv
+ieepa-reciprocal-china-10,8542.32,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 exception includes 8542.32.00
+ieepa-reciprocal-country-rates,8542.32,exempt,hts-2026rev22-ch99 note 2(v)(iii)(a),verified,9903.01.32 exception includes 8542.32.00
+ieepa-fentanyl-china-10,8542.32,covered,hts-2026rev22-ch99 note 2(u),verified,China and Hong Kong synthetic-opioid-policy duty remains broadly applicable after the rate cut
+s232-semiconductors,8542.32,not_covered,hts-2026rev22-ch99 note 39(b),verified,Note 39 covers specified advanced computing articles under 8471.50 8471.80 and 8473.30；it does not list 8542.32
+ieepa-ended,8542.32,covered,fr-91-9437; usitc-pub-5738,verified,EO 14389 reaches the synthetic-opioid-policy IEEPA heading that covered 8542.32；USITC records the termination as effective 2026-02-20
+s122-surcharge,8542.32,exempt,hts-2026rev22-ch99 note 2(aa)(ii),verified,9903.03.03 exception list includes 8542.32.00
+s122-surcharge-ended,8542.32,exempt,hts-2026rev22-ch99 note 2(aa)(ii),verified,Same product exception as s122-surcharge
+s301-forced-labor,8542.32,exempt,hts-2026rev22-ch99 note 52(b),verified,9903.05.86 exception list includes 8542.32.00

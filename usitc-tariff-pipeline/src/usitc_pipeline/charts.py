@@ -22,6 +22,7 @@ from typing import Any, Iterable
 import numpy as np
 import pandas as pd
 
+from . import product_hierarchy as product_hierarchy_module
 from .study import MAX_HIGHLIGHTS
 
 
@@ -107,7 +108,9 @@ def _prepare_output(output_dir: str | Path, stem: str, data: pd.DataFrame) -> tu
     return png, csv
 
 
-def _finish(fig, png: Path, source: str, *, footer: Iterable[str] = ()) -> Path:
+def _finish(
+    fig, png: Path, source: str, *, footer: Iterable[str] = (), use_tight_layout: bool = True
+) -> Path:
     """Source line at the bottom; optional key lines above it (no text over data)."""
 
     from matplotlib.ticker import MaxNLocator
@@ -119,7 +122,8 @@ def _finish(fig, png: Path, source: str, *, footer: Iterable[str] = ()) -> Path:
     width, height = fig.get_size_inches()
     lines = [part for line in (*footer, source) for part in textwrap.wrap(line, width=int(width * 18))]
     fig.text(0.01, 0.01, "\n".join(lines), ha="left", va="bottom", fontsize=7.2, color=INK_MUTED, linespacing=1.5)
-    fig.tight_layout(rect=(0, min(0.4, (0.16 + 0.155 * len(lines)) / height), 1, 1))
+    if use_tight_layout:
+        fig.tight_layout(rect=(0, min(0.4, (0.16 + 0.155 * len(lines)) / height), 1, 1))
     fig.savefig(png)
     import matplotlib.pyplot as plt
 
@@ -622,6 +626,106 @@ def plot_heading_map(heading_map: pd.DataFrame, output_dir: str | Path, labels: 
     return _finish(fig, png, labels.source + " Value and calculated duty only; quantity is not compared across HTS6 lines.")
 
 
+def plot_product_mix(matrix: pd.DataFrame, output_dir: str | Path, labels: ChartLabels) -> Path:
+    """HTS10 World composition and focal-origin penetration inside the HTS6."""
+
+    chart_data = product_hierarchy_module.build_product_mix_chart_data(matrix)
+    measured = chart_data[
+        chart_data["product_share_status"].astype(str).eq("measured")
+        & pd.to_numeric(chart_data["share_of_parent_hts6_pct"], errors="coerce").notna()
+    ].copy()
+    if measured.empty:
+        raise ValueError("Product mix needs measured HTS10 shares and an independent HTS6 World denominator")
+    png, _ = _prepare_output(output_dir, "12_product_mix", chart_data)
+    measured["share_of_parent_hts6_pct"] = pd.to_numeric(measured["share_of_parent_hts6_pct"], errors="raise")
+    measured["focal_origin_source_share_pct"] = pd.to_numeric(
+        measured["focal_origin_source_share_pct"], errors="coerce"
+    )
+    measured = measured.sort_values(["hts8_code", "share_of_parent_hts6_pct"], ascending=[True, True], kind="stable")
+    short_names = {
+        "Static read-write random access (SRAM)": "SRAM",
+        "Electrically erasable programmable read-only memory (EEPROM)": "EEPROM",
+        "Erasable (except electrically) programmable read-only memory (EPROM)": "EPROM",
+    }
+    measured["label"] = measured.apply(
+        lambda row: (
+            f"{row['hts10_code']}  "
+            f"{textwrap.shorten(short_names.get(str(row['hts10_description']), str(row['hts10_description'])), width=38, placeholder='…')}"
+        ),
+        axis=1,
+    )
+    groups = {code: SLOTS[index % len(SLOTS)] for index, code in enumerate(sorted(measured["hts8_code"].unique()))}
+    colors = [groups[code] for code in measured["hts8_code"]]
+    plt = _plt()
+    fig, (world_ax, focal_ax) = plt.subplots(
+        ncols=2,
+        sharey=True,
+        figsize=(13.6, max(4.8, 0.48 * len(measured) + 2.1)),
+        gridspec_kw={"width_ratios": (1.25, 1.0), "wspace": 0.10},
+    )
+    positions = np.arange(len(measured))
+    world_bars = world_ax.barh(
+        positions, measured["share_of_parent_hts6_pct"], color=colors, height=0.62
+    )
+    world_ax.bar_label(
+        world_bars,
+        labels=[f"{value:.1f}%" for value in measured["share_of_parent_hts6_pct"]],
+        padding=3,
+        fontsize=8.5,
+    )
+    world_ax.set_yticks(positions, measured["label"])
+    world_ax.tick_params(axis="y", labelsize=8.5)
+    world_ax.set_xlabel("HTS10 share of parent HTS6 World customs value (%)")
+    world_ax.set_title("World product mix", loc="left", fontsize=10.5, pad=8)
+
+    focal_values = measured["focal_origin_source_share_pct"]
+    available = focal_values.notna()
+    focal_bars = focal_ax.barh(
+        positions[available],
+        focal_values[available],
+        color=labels.color(labels.focal_origin),
+        height=0.62,
+    )
+    focal_ax.bar_label(
+        focal_bars,
+        labels=[f"{value:.1f}%" for value in focal_values[available]],
+        padding=3,
+        fontsize=8.5,
+    )
+    for position in positions[~available]:
+        focal_ax.text(0.5, position, "N/A", va="center", ha="left", fontsize=8.5, color=INK_MUTED)
+    focal_ax.tick_params(axis="y", left=False, labelleft=False)
+    focal_ax.set_xlabel(f"{labels.focal_origin} share of each HTS10 World value (%)")
+    focal_ax.set_title(
+        f"{labels.focal_origin}-reported-origin share within each HTS10",
+        loc="left",
+        fontsize=10.5,
+        pad=8,
+    )
+    period = ", ".join(sorted(set(measured["data_period"].astype(str))))
+    fig.suptitle(f"{labels.product}: HTS10 structure and import-value shares, {period}", x=0.08, ha="left")
+    maximum = float(measured["share_of_parent_hts6_pct"].max())
+    world_ax.set_xlim(0, max(5.0, maximum * 1.22))
+    focal_maximum = float(focal_values[available].max()) if available.any() else 0.0
+    focal_ax.set_xlim(0, max(5.0, focal_maximum * 1.22))
+    footer = [
+        (
+            "HTS8 is the legal tariff-rate line; HTS10 is the statistical product category. "
+            "Left = HTS10 World value / independently queried HTS6 World value; "
+            f"right = {labels.focal_origin} value / the same HTS10 World value."
+        ),
+        (
+            "U.S. consumption-import customs-value proxies only: not market share, revenue, capacity, or value added; "
+            f"{labels.focal_origin} is the reported country of origin."
+        ),
+    ]
+    # ``_finish`` uses tight_layout for the common chart family.  Shared-y
+    # two-panel axes can opt out of that layout engine, so reserve footer and
+    # long-label space explicitly before the common source/footer is added.
+    fig.subplots_adjust(left=0.22, right=0.985, top=0.84, bottom=0.23, wspace=0.10)
+    return _finish(fig, png, labels.source, footer=footer, use_tight_layout=False)
+
+
 def render_all(
     tables: dict[str, pd.DataFrame],
     *,
@@ -682,6 +786,18 @@ def render_all(
             skipped["11_heading_map"] = "HTS4 context queries not fetched (they need separate user approval)"
         else:
             generated.append(plot_heading_map(heading_map, out, labels))
+    hierarchy = tables.get("product_hierarchy_matrix")
+    if hierarchy is not None:
+        measured = (
+            hierarchy["product_share_status"].astype(str).eq("measured")
+            & pd.to_numeric(hierarchy["share_of_parent_hts6_pct"], errors="coerce").notna()
+        ) if not hierarchy.empty else pd.Series(dtype=bool)
+        if bool(measured.any()):
+            generated.append(plot_product_mix(hierarchy, out, labels))
+        else:
+            skipped["12_product_mix"] = (
+                "needs same-period HTS10 all-origin and independent World data plus the independent parent HTS6 World denominator"
+            )
     return generated, skipped
 
 

@@ -464,12 +464,12 @@ class DataWebClient:
 
     def _post_with_retry(self, payload: Mapping[str, Any]) -> requests.Response:
         delays = self.config.dataweb.retry_delays or (0,)
+        # Backward-compatible with older configs that listed only retry waits:
+        # prepend the immediate attempt instead of sleeping before it.
+        if delays[0] != 0:
+            delays = (0, *delays)
         last_error: Exception | None = None
         for attempt, delay in enumerate(delays, start=1):
-            if delay:
-                # Small jitter avoids synchronized retries without changing the
-                # research result; it only affects request timing.
-                time.sleep(delay + random.uniform(0, min(1.0, delay / 10)))
             try:
                 response = self.session.post(
                     self.endpoint,
@@ -492,6 +492,14 @@ class DataWebClient:
                 last_error = exc
             if attempt == len(delays):
                 break
+            # ``retry_delays`` is an attempt schedule whose first entry is the
+            # immediate initial request.  A later entry is waited only after
+            # the preceding request failed, never before the first request.
+            next_delay = delays[attempt]
+            if next_delay:
+                # Small jitter avoids synchronized retries without changing the
+                # research result; it only affects request timing.
+                time.sleep(next_delay + random.uniform(0, min(1.0, next_delay / 10)))
         raise DataWebError(f"DataWeb request failed after {len(delays)} attempts") from last_error
 
 

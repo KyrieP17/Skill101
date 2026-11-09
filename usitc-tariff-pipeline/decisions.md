@@ -269,3 +269,54 @@ D-016 记的已知小问题（没有事件线时 03 图脚注仍讲事件线）�
   - 锂电 `outputs/runs/lithium-ion-hts10-both-2017-2026/plan-2562effd15db/analysis-2c0c6daf19a5/`：brief 按六节重写，brief-check 324/324。中间只改了时间线的那次 `analysis-9d3a968fb431` 没有 brief，被这一版取代。
   - 两份 `final_report.pdf` 已生成，逐页看过。
 - 2026-11-08 传到 GitHub（KyrieP17/Skill101，commit c2100c9）。之后加了 MIT 许可证和试用说明（仓库根目录 LICENSE、README）。
+
+## 2026-11-09
+
+### D-028 — 商品关税输出只消费明确适用的 coverage
+
+- 用户确认：涉及加关税的图，只有商品 coverage 明确适用时才应用相应措施；全量政策库继续保留，但不能把全部候选政策行放进商品报告。
+- 落实：`analyze` 在生成 `tariff_timeline.csv` 之前，将产品层和国家层候选时间线逐行对照 `config/tariff_registry`。只有日期、税号和来源地匹配，且措施与 coverage 都是 `verified`、coverage 为 `covered` 的行，才规范化为 `coverage=applies` 并进入时间线表、03/09 图、变化分解、下钻菜单和异常规则。MFN 基础税率保留为 `coverage=base_rate`，因为 registry 只收第 99 章措施。
+- `exempt`、`not_covered`、`suspended`、缺少 coverage、日期不匹配、措施或 coverage 待核对的行全部 fail closed：不进入商品的加税图和税率异常。`flags.py` 另做一次 `coverage=applies` 检查，避免其他调用路径绕过过滤。
+- `analysis_manifest.json` 记录过滤计数、三张 registry 输入的 SHA-256 和合并哈希；registry 改动后，旧分析不能继续通过验证，必须重跑 `analyze`，但不需要重新向 DataWeb 取数。
+- 存储芯片真实缓存回归：23 条候选时间线保留 8 条（1 条 MFN、7 条明确适用的政策处理），排除 15 条；reciprocal、Section 232、Section 122、forced-labor 等不适用行不再进入图，`duty_below_timeline` 假警报从原先的错误触发降为 0。
+
+### D-029 — 用“HTS 法定关税处理快照”，不做一个百分比税率计算器
+
+- 用户接受税务专业边界：正式名称是 **HTS-based tariff treatment snapshot / HTS法定关税处理快照**。它是研究快照，不是 CBP binding ruling、entry liquidation，也不把 DataWeb 的 realized duty 当成法定税率。
+- 最小身份是 `origin × HTS8/HTS10 × entry_date × HTS release × rate_column/preference_claim × entry_type`。`entry_date`、`hts_release_id` 和 `hts_release_date` 都要显式写；release date 不得晚于 entry date。快照还必须绑定一份机器可读 release sidecar（release id、effective date、结构文件名、采集 URL、结构 SHA-256），并与 entry date 当天所有 active scope line 的唯一版本交叉核对。sidecar 的 URL 只是已批准 scope 的采集来源记录，不能单独证明版本。历史 entry date 必须配对应的 archived HTS structure，不能用现行结构倒推。
+- V1 只解析普通 consumption entry 的 Column 1-General 加已核实 Chapter 99 层。specific/compound 公式保留原文；preferences、Chapter 98、quota/TRQ、warehouse/FTZ、AD/CVD、firm-specific rate 和最终分类写成 `Conditional`，不假装已解析。
+- 结果是 `Resolved / Mixed / Conditional / Unresolved`。`config/tariff_registry/treatment_rules.csv` 只存机器可读的 `add / replace / exempt / end`、rate text/type、`stack_group`、`supersedes`、有效期和 source ids；不从 `measures.csv` 的 `+25% -> +50%` 自由文本猜生命周期。缺 coverage、缺规则、同组叠加不明或来源待核对一律 fail closed。
+- 输出统一为 `tables/tariff_treatment_snapshot.csv`；输入 registry 与 HTS structure 的 SHA-256 绑定进分析清单。框架完成前不重跑真实报告。
+
+### D-030 — 产品结构保留 HTS8，HTS10 份额只能从新取的细分数据来
+
+- 用户确认研究是 HTS6 行业口径时，也要如实列出下属哪些产品受影响。层级固定为 `HTS6 industry scope → HTS8 legal rate line → HTS10 statistical category`；不省略 HTS8。单一 HTS8 在图上可以折叠，多 HTS8 保持分组；优先横向条形图，不用关系网络图。
+- `tables/product_hierarchy_matrix.csv` 一行一个 HTS10，列出描述、单位、HTS8 Column 1-General、附加税处理和状态、分类版本、连续性、最新完整期金额/China 金额与份额状态。
+- HTS10 产品份额只定义为“同一期 HTS10 independent-World consumption-import customs value / 独立查询的 parent HTS6 World customs value”。这是美国进口海关价值构成，不是市场份额、企业份额、增加值或全球产能。
+- 现有 HTS6 cache 不能推导 HTS10 份额，也不能把拿到的子项归一到 100%。缺同期间 HTS10 all-origin/World 查询或 HTS6 独立分母时，份额留空并写 `unavailable_*`；`12_product_mix` 不出图，下一步菜单建议新取数。
+
+### D-031 — 每个 proxy 有机器可读脚注；下一步菜单最多三项
+
+- 每次分析写 `tables/proxy_notes.csv`：每个 proxy 的 source dataset/fields、formula、denominator、unit、represents、does-not-represent、data period、classification release 和 quality warning。至少覆盖 unit value、realized duty、reported origin，以及实际取得后才出现的 HTS10 import-value share。
+- 单位价值是 customs value / 报告数量，不是 transaction price、company ASP、market price 或 per-capacity price；会混入技术、容量、封装和规格结构，且 Census 可能不标记数量压制。原产地是申报给 CBP 的 origin，不是 fab、value added 或企业依赖。
+- `tables/next_steps.csv` 由结构化状态确定，最多三项：先补未解析/条件/混合的 tariff snapshot，再补 HTS10 产品份额、rate-provision/import-program reconciliation、unit-value/quantity 下钻或 HTS 历史连续性。每项写需要什么输入、预期输出和是否需联网/新数据；菜单不自动执行。
+- `[industry_context] mode = "off" / "light"` 只决定是否把“可选的轻量联网行业周期背景”列进菜单。默认 `off`；`light` 也不等于已获准联网，外部背景必须和 DataWeb 发现分开标注。
+
+### D-032 — “synthetic-opioid”只作为法律政策标签，名称直接带法源编号
+
+- 用户看到 “fentanyl duty” 会误解为商品和芬太尼有关。对用户可见的名称改成 `IEEPA China-wide additional duty — synthetic-opioid policy`，并直接附对应 Chapter 99、Executive Order 和 Federal Register 编号，例如 `HTSUS 9903.01.20; EO 14195; 90 FR 9121`。
+- 备注必须写：政策名称描述的是对来源地广泛适用的法律依据，不代表存储芯片、PCB 或其他研究商品与芬太尼有关。内部稳定 `measure_id` 可保留，避免破坏历史映射。
+
+### D-033 — macOS/Linux 和英文 brief-check 不再静默失败
+
+- `config.example.json` 不再写死 `.venv\\Scripts\\python.exe`；wrapper 自动找 Windows 的 `.venv/Scripts/python.exe` 或 macOS/Linux 的 `.venv/bin/python`。README、operations 和批准卡片同时给 PowerShell 与 bash/zsh 命令。
+- DataWeb 第一次请求立即发送，只有失败后才按 retry delay 等待；测试配置不产生人为 5 秒延迟。
+- `brief-check` 支持 `$519 per unit`、`US$`、前后置 `USD`、`bn/mn`、`4.4x/×`。摘要分别报 `numeric_tokens / parsed / traced / ambiguous / skipped`；未知相邻单位报 `ambiguous_unit`，不再归到 without-unit 后静默跳过。英文 hedges/causal verbs 同步扩充。
+- 这些改动只跑离线和合成测试；按用户要求，等所有框架问题一起解决后才统一重跑真实报告/PDF。
+
+### D-034 — 报告不再展示“未经用户核对”，关税表直接列法源
+
+- 用户要求最终报告不要出现“未经客户/用户核对”的措辞；时间线应直接注明数据来源，并只展示筛选后真正影响研究商品的政策变化。
+- `review_status` 继续作为内部研究字段，不再进入用户可见的时间线表或必提项。没有一手来源的事实仍标“来源待核实”并按 fail-closed 处理。
+- 用户可见的关税表列出税率变化、适用编码/来源地，以及 HTSUS Chapter 99、Executive Order、Federal Register 或 USTR/CBP 法源编号和原文链接；内部 `measure_id` 不展示。
+- 对 synthetic-opioid policy 的正文只需简述：以芬太尼/合成阿片供应链为政策理由，但形成了对中国原产广泛商品适用的来源地附加税；不再重复“研究商品不是芬太尼”的防误读句。

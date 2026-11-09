@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "release_id": "2025HTSRev19",
+  "effective_date": "2025-07-01",
+  "structure_file": "hts_rest_search_0000.00.json",
+  "source_url": "https://hts.usitc.gov/reststop/search?keyword=0000.00",
+  "source_sha256": "<sha256-of-the-exact-raw-structure-file>",
+  "retrieved_at_utc": "<YYYY-MM-DDTHH:MM:SSZ>"
+}

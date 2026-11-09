@@ -222,9 +222,12 @@ def build_anomaly_flags(
 
     months = _Months(display, focal_origin)
     checked = [origin for origin in dict.fromkeys([focal_origin, *highlight_origins]) if origin != OTHER_ORIGINS]
-    timeline = list(timeline or [])
-    if not timeline:
+    timeline_rows = list(timeline or [])
+    timeline = [row for row in timeline_rows if _text(row.get("coverage")) == "applies"]
+    if not timeline_rows:
         skipped["timeline_rules"] = "the study has no [timeline]"
+    elif not timeline:
+        skipped["timeline_rules"] = "the study has no verified coverage=applies tariff rows"
     elif not months.periods:
         skipped["timeline_rules"] = "the study has no monthly data"
     for row in timeline:
@@ -326,11 +329,10 @@ def build_mention_list(
                           "reason": f"{base:.1f}% -> {compare:.1f}% ({compare - base:+.1f} pp >= {MENTION_DUTY_PP:g} pp)",
                           "source": "tables/origin_change.csv"})
     rows = list(timeline or [])
-    unchecked = sum(1 for row in rows if not row.get("user_checked"))
     unsourced = sum(1 for row in rows if row.get("needs_check"))
-    if unchecked or unsourced:
-        items.append({"item": "timeline rows not yet checked", "keywords": "待核对;未经用户核对;未核对;to verify;unverified;not checked",
-                      "reason": f"{unchecked} rows not checked by the user, {unsourced} without a primary source",
+    if unsourced:
+        items.append({"item": "timeline rows without a verified primary source", "keywords": "来源待核实;待核对;to verify;unverified",
+                      "reason": f"{unsourced} rows without a verified primary source",
                       "source": "tables/tariff_timeline.csv"})
     if not continuity_verified:
         items.append({"item": "HTS continuity not verified", "keywords": "连续性未核实;continuity",

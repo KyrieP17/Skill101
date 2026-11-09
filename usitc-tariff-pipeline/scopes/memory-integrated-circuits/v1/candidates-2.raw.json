@@ -1,0 +1,13 @@
+{
+  "retrieved_at_utc": "2026-11-09T03:22:51.506231+00:00",
+  "endpoint": "https://hts.usitc.gov/reststop/search",
+  "product_id": "memory-integrated-circuits",
+  "product_name": "Memory integrated circuits",
+  "searches": [
+    {
+      "keyword": "\"dynamic random access\"",
+      "url": "https://hts.usitc.gov/reststop/search?keyword=%22dynamic+random+access%22",
+      "results": []
+    }
+  ]
+}

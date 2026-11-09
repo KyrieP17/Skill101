@@ -24,8 +24,11 @@ import hashlib
 from itertools import groupby
 import json
 from pathlib import Path
+import re
 from typing import Any, Iterable
 
+from . import drilldown as drilldown_module
+from . import tariff_snapshot_adapter as tariff_snapshot_adapter_module
 from .config import ResearchConfig, read_csv_records
 from .dataweb import (
     MAX_YEARS_PER_QUERY,
@@ -41,7 +44,7 @@ from .dataweb import (
     report_measures,
 )
 from .scope import ApprovedScope, ScopeGateError, canonical_sha256, utc_now, verify_scope_manifest, write_json_atomic
-from .study import StudyError, StudySpec, load_study
+from .study import ProductMixSpec, StudyError, StudySpec, load_study
 from .timeline import TimelineError, read_timeline
 
 
@@ -78,7 +81,94 @@ def load_project_study(config: ResearchConfig, path: str | Path, *, today: date 
         study = replace(study, timeline_records_sha256=canonical_sha256(timeline_records(config, study)))
     if study.drilldown_structure:
         study = replace(study, drilldown_structure_sha256=drilldown_structure_sha256(config, study))
+    if study.drilldown_release_metadata:
+        study = replace(
+            study,
+            drilldown_release_metadata_sha256=drilldown_release_metadata_sha256(config, study),
+        )
+    if study.product_mix:
+        study = replace(study, product_mix=_resolve_product_mix(config, study))
     return study
+
+
+def _digits(value: object) -> str:
+    return re.sub(r"\D", "", str(value or ""))
+
+
+def _resolve_product_mix(config: ResearchConfig, study: StudySpec) -> ProductMixSpec:
+    """Bind one HTS10 product-mix query to an approved HTS6 scope and HTS release."""
+
+    requested = study.product_mix
+    if requested is None:  # pragma: no cover - guarded by the caller
+        raise StudyError("product_mix is not configured")
+    scope = verify_scope_manifest(config.paths.root / study.scope_manifest)
+    if scope.hts_level != 6:
+        raise StudyError("[product_mix] is only valid for an HTS6 industry scope")
+    structure_relative = requested.structure or study.drilldown_structure
+    metadata_relative = requested.release_metadata or study.drilldown_release_metadata
+    if not structure_relative or not metadata_relative:
+        raise StudyError("[product_mix] needs a structure and release metadata")
+    structure_path = config.paths.root / structure_relative
+    metadata_path = config.paths.root / metadata_relative
+    try:
+        raw_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise StudyError(f"Cannot read product-mix HTS release metadata {metadata_path}: {exc}") from exc
+    if not isinstance(raw_metadata, dict):
+        raise StudyError("Product-mix HTS release metadata must be a JSON object")
+    try:
+        metadata = tariff_snapshot_adapter_module.load_structure_release_metadata(
+            metadata_path,
+            structure_path=structure_path,
+            expected_release_id=str(raw_metadata.get("release_id") or ""),
+            expected_effective_date=str(raw_metadata.get("effective_date") or ""),
+        )
+        structure = drilldown_module.read_structure(structure_path)
+    except (
+        tariff_snapshot_adapter_module.TariffSnapshotAdapterError,
+        drilldown_module.DrilldownError,
+    ) as exc:
+        raise StudyError(str(exc)) from exc
+    release_day = date.fromisoformat(str(metadata["effective_date"]))
+    if release_day.year != requested.period:
+        raise StudyError(
+            f"product_mix.period {requested.period} needs an HTS structure effective in that year; "
+            f"the bound release is effective {release_day.isoformat()}"
+        )
+    period_start, period_end = date(requested.period, 1, 1), date(requested.period, 12, 31)
+    active_lines = [
+        line for line in scope.included
+        if line.valid_from <= period_end and line.valid_to >= period_start
+    ]
+    if not active_lines:
+        raise StudyError(
+            f"product_mix.period {requested.period} is outside every approved scope line's validity window"
+        )
+    parents = sorted({line.hts_code for line in active_lines})
+    codes = sorted(
+        {
+            code
+            for row in structure
+            if len(code := _digits(row.get("htsno") or row.get("hts_code"))) == 10
+            and any(code.startswith(parent) for parent in parents)
+        }
+    )
+    missing = [parent for parent in parents if not any(code.startswith(parent) for code in codes)]
+    if missing:
+        raise StudyError(
+            "The bound HTS structure has no HTS10 statistical categories under approved HTS6 line(s): "
+            + ", ".join(missing)
+        )
+    return ProductMixSpec(
+        period=requested.period,
+        structure=requested.structure,
+        release_metadata=requested.release_metadata,
+        codes=tuple(codes),
+        hts_release_id=str(metadata["release_id"]),
+        hts_release_date=str(metadata["effective_date"]),
+        structure_sha256=str(metadata["source_sha256"]),
+        release_metadata_sha256=file_sha256(metadata_path),
+    )
 
 
 def drilldown_structure_sha256(config: ResearchConfig, study: StudySpec) -> str:
@@ -89,6 +179,18 @@ def drilldown_structure_sha256(config: ResearchConfig, study: StudySpec) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except OSError as exc:
         raise StudyError(f"Cannot read drilldown.structure {study.drilldown_structure}: {exc}") from exc
+
+
+def drilldown_release_metadata_sha256(config: ResearchConfig, study: StudySpec) -> str:
+    """SHA-256 of the machine-readable release metadata bound to a snapshot."""
+
+    path = config.paths.root / str(study.drilldown_release_metadata)
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as exc:
+        raise StudyError(
+            f"Cannot read drilldown.release_metadata {study.drilldown_release_metadata}: {exc}"
+        ) from exc
 
 
 def timeline_records(config: ResearchConfig, study: StudySpec) -> dict[str, list[dict[str, str]]]:
@@ -184,6 +286,38 @@ def _job(
     }
 
 
+def _product_mix_job(
+    scope: ApprovedScope,
+    product_mix: ProductMixSpec,
+    break_out_origins: bool,
+    max_records: int,
+) -> dict[str, Any]:
+    """One same-year HTS10 query used only by the product hierarchy matrix."""
+
+    spec = QuerySpec(
+        hts_level=10,
+        codes=product_mix.codes,
+        years=(product_mix.period,),
+        frequency="annual",
+        break_out_origins=break_out_origins,
+    )
+    digest = payload_sha256(spec, max_records=max_records)
+    label = "all" if break_out_origins else "world"
+    return {
+        "purpose": "product_mix",
+        "cache_stem": (
+            f"scopes/{scope.scope_id}/v{scope.scope_version}/product_mix/"
+            f"hts10_annual_{label}_{product_mix.period}_{product_mix.period}_{digest[:10]}"
+        ),
+        "frequency": "annual",
+        "years": [product_mix.period],
+        "hts_level": 10,
+        "codes": list(product_mix.codes),
+        "break_out_origins": break_out_origins,
+        "payload_sha256": digest,
+    }
+
+
 def _check_coverage(scope: ApprovedScope, study: StudySpec) -> None:
     problems: list[str] = []
     for name, period in (("annual", study.annual), ("monthly", study.monthly)):
@@ -227,6 +361,15 @@ def build_query_plan(scope: ApprovedScope, study: StudySpec, *, max_records: int
         for frequency, years, codes in periods
         for breakout in (True, False)
     ]
+    if study.product_mix:
+        if scope.hts_level != 6 or not study.product_mix.codes:
+            raise ScopeGateError(
+                "An HTS10 product-mix plan needs an HTS6 approved scope and release-bound HTS10 codes"
+            )
+        jobs += [
+            _product_mix_job(scope, study.product_mix, breakout, max_records)
+            for breakout in (True, False)
+        ]
 
     content: dict[str, Any] = {
         "schema_version": PLAN_SCHEMA_VERSION,
@@ -258,6 +401,8 @@ def build_query_plan(scope: ApprovedScope, study: StudySpec, *, max_records: int
     }
     if study.hts4_context:
         content["context"] = context_plan(scope, study, max_records=max_records)
+    if study.product_mix:
+        content["product_mix"] = study.product_mix.as_json()
     return {"plan_sha256": _plan_digest(content), "created_at_utc": utc_now(), **content}
 
 
@@ -374,7 +519,10 @@ def codes_by_period(plan: dict[str, Any]) -> list[dict[str, Any]]:
     consecutive years, so each group is one period.
     """
 
-    breakouts = (job for job in plan["jobs"] if job["break_out_origins"])
+    breakouts = (
+        job for job in plan["jobs"]
+        if job.get("purpose", "scope") == "scope" and job["break_out_origins"]
+    )
     rows: list[dict[str, Any]] = []
     for (frequency, codes), group in groupby(breakouts, key=lambda job: (job["frequency"], job["codes"])):
         jobs = list(group)
@@ -388,7 +536,7 @@ def period_codes(plan: dict[str, Any]) -> dict[tuple[str, str], tuple[str, ...]]
 
     result: dict[tuple[str, str], tuple[str, ...]] = {}
     for job in plan["jobs"]:
-        if job["break_out_origins"]:
+        if job.get("purpose", "scope") != "scope" or job["break_out_origins"]:
             continue
         for year in job["years"]:
             if job["frequency"] == "annual":
@@ -404,6 +552,8 @@ def query_through(plan: dict[str, Any]) -> dict[str, str]:
 
     result: dict[str, str] = {}
     for job in plan["jobs"]:
+        if job.get("purpose", "scope") != "scope":
+            continue
         year = max(map(int, job["years"]))
         period = str(year) if job["frequency"] == "annual" else f"{year:04d}-12"
         result[job["frequency"]] = max(result.get(job["frequency"], period), period)

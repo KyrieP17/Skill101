@@ -29,7 +29,9 @@ timeout_seconds = 120
 # DataWeb rejects a totalRecords setting above 20,000 (seen 2026-11-06); a query here returns a few thousand rows.
 max_records = 20000
 # Waits after consecutive retryable failures (for example HTTP 429).
-retry_delays = [5, 15, 30, 60]
+# Attempt schedule: the initial request is immediate (0); later values are
+# waited only after a failed request, before the corresponding retry.
+retry_delays = [0, 5, 15, 30, 60]
 
 [paths]
 # All paths are relative to the project root and are resolved by config.py.

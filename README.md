@@ -22,11 +22,11 @@ The skill is instructions plus scripts; it does nothing by itself. Your agent (f
 
 Everything else (finding the codes, planning queries, analysis, charts, checks, the report) the agent runs for you.
 
+The pipeline supports Windows, macOS and Linux with Python 3.11+.
+
 ## Try it
 
-Tested on Windows 11 with Python 3.11+. Not tested on macOS or Linux; adjust paths and commands there (for example `.venv/bin/python`).
-
-**1. Install the pipeline** (PowerShell; or ask your agent to do steps 1 and 2)
+**1. Install the pipeline** (Windows PowerShell; or ask your agent to do steps 1 and 2)
 
 ```powershell
 git clone https://github.com/KyrieP17/Skill101.git
@@ -36,11 +36,21 @@ py -3 -m venv .venv
 .\.venv\Scripts\python run.py status
 ```
 
-`status` should list three approved scopes: `smartphones/v1`, `lithium-ion/v1` and `lithium-ion/v2`.
+`status` lists approved scopes, scopes still awaiting approval, and study gates. The repository will gain more scopes over time, so installation success is not tied to a fixed count. For example, `laptops/v2` showing `gate closed` / `cannot plan` means that its approval or complete study is still missing, not that the installation is broken.
+
+macOS / Linux (bash or zsh):
+
+```bash
+git clone https://github.com/KyrieP17/Skill101.git
+cd Skill101/usitc-tariff-pipeline
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-lock.txt
+.venv/bin/python run.py status
+```
 
 **2. Connect the skill**
 
-Put the whole `skills/tariff-sourcing-research` folder where your agent reads skills (Claude Code: `~/.claude/skills/` or `.claude/skills/` inside a project). In that copy, copy `config.example.json` to `config.json` and set `project_root` to the absolute path of `usitc-tariff-pipeline`.
+Put the whole `skills/tariff-sourcing-research` folder where your agent reads skills (Claude Code: `~/.claude/skills/` or `.claude/skills/` inside a project). In that copy, copy `config.example.json` to `config.json` and set `project_root` to the absolute path of `usitc-tariff-pipeline`. The example does not hard-code an interpreter: the wrapper detects `.venv/Scripts/python.exe` on Windows or `.venv/bin/python` on macOS/Linux. Add the optional `python` key only when using an environment elsewhere.
 
 **3. Run a sample first** (its scope is already approved)
 
@@ -58,6 +68,19 @@ Remove-Item Env:DATAWEB_TOKEN
 .\.venv\Scripts\python run.py all --study config\studies\smartphones-2022-2026.toml
 ```
 
+macOS / Linux (bash or zsh; input is hidden):
+
+```bash
+.venv/bin/python run.py plan --study config/studies/smartphones-2022-2026.toml
+printf 'DataWeb token: '
+IFS= read -rs DATAWEB_TOKEN
+printf '\n'
+export DATAWEB_TOKEN
+.venv/bin/python run.py acquire --plan outputs/runs/smartphones-2022-2026/plan-2ca86ee6e514/query_plan.json
+unset DATAWEB_TOKEN
+.venv/bin/python run.py all --study config/studies/smartphones-2022-2026.toml
+```
+
 DataWeb updates and revises its data, so your numbers may differ a little from the sample. The final PDF needs the agent to write `brief.md` first, then `run.py report-pdf --study ...` (which runs `brief-check` first).
 
 **4. Study your own product**
@@ -66,10 +89,12 @@ Tell your agent what you want, for example "Where does the U.S. import HTS 8504.
 
 ## Known limits
 
-- The tariff registry covers only 8517.13 (smartphones), 8471.30 (laptops) and 8507.60 (lithium-ion batteries). Other products need a new timeline, and `registry-check` can only compare against measures already in the registry.
-- Timeline rows are all `draft` (not checked by the user). Rows marked 待核对 (to verify) lack a primary source or one item of it; `notes` says what. The registry also has two measures and three coverage rows still to verify (`usitc-tariff-pipeline/decisions.md` D-026, D-027).
+- The tariff registry is not a universal rate database that automatically applies every country-wide policy to every product. A measure enters a product tariff chart only when its date, origin, HTS coverage, legal lifecycle and primary sources are verified. Missing product coverage fails closed.
+- Timeline `review_status` remains an internal research field. A genuinely missing source, effective date, coverage rule or lifecycle rule stays unresolved; DataWeb realized duty never substitutes for statutory treatment.
+- An English final PDF needs an English `brief.md` plus explicit `report-pdf --lang en`. Some internal analysis artifacts still use Chinese templates and should not be treated as an English client report.
+- `.gitattributes` preserves the bytes of files bound by SHA-256. On macOS/Linux, do not convert line endings across the repository: that creates a large meaningless diff and invalidates bound hashes.
 - Reports give data, background and anomalies, never causes (D-019).
-- The reports, `decisions.md`, the design notes, and the `notes` columns of the timelines and registry are in Chinese. The READMEs, the skill's instructions and the code comments are in English.
+- Reports, `decisions.md`, design notes, and some timeline/registry notes remain in Chinese. The READMEs, skill instructions and code comments are in English.
 
 Questions and suggestions: open a GitHub issue.
 
@@ -82,3 +107,4 @@ Questions and suggestions: open a GitHub issue.
 ## License
 
 MIT, see [LICENSE](LICENSE). The data comes from USITC DataWeb and the tariff sources from the Federal Register and the HTS archive, all public U.S. government information; follow DataWeb's own terms when you use it.
+

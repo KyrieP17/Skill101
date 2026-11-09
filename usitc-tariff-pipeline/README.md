@@ -32,6 +32,8 @@ Which scopes are approved, which studies can run and what is missing: `python ru
 
 Run from the project root. You can also use the skill's `scripts/tariff_pipeline.py`: it finds the project and the interpreter from the skill's `config.json`, and passes the token to `acquire` only.
 
+The examples below use PowerShell. On macOS/Linux, use the same subcommands with `/` path separators and `.venv/bin/python`; complete bash/zsh setup and token examples appear below.
+
 ```powershell
 # 1. Validate a reviewed scope and write the card the approver reads (it approves nothing and never overwrites an existing card)
 python run.py scope-validate --scope scopes\<id>\v<k>\reviewed.csv `
@@ -130,6 +132,13 @@ py -3 -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements-lock.txt
 ```
 
+macOS / Linux (bash or zsh):
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-lock.txt
+```
+
 `run.py` adds `src/` to the path itself, so the project does not need installing; to install it anyway, run `.\.venv\Scripts\python -m pip install -e . --no-deps`. `scope-validate`, `scope-approve`, `hts-history`, `plan` and `status` use the standard library only; downloading needs `requests`; analysis and charts need `pandas`, `numpy` and `matplotlib`. Tests use the built-in `unittest`.
 
 ## 5. DataWeb token
@@ -141,6 +150,17 @@ $secure = Read-Host 'DataWeb token' -AsSecureString
 $env:DATAWEB_TOKEN = [Net.NetworkCredential]::new('', $secure).Password
 python run.py acquire --plan outputs\runs\<study_id>\plan-<hash12>\query_plan.json
 Remove-Item Env:DATAWEB_TOKEN
+```
+
+bash / zsh (input is hidden and never written to a file):
+
+```bash
+printf 'DataWeb token: '
+IFS= read -rs DATAWEB_TOKEN
+printf '\n'
+export DATAWEB_TOKEN
+.venv/bin/python run.py acquire --plan outputs/runs/<study_id>/plan-<hash12>/query_plan.json
+unset DATAWEB_TOKEN
 ```
 
 `.env.example` is only a template of the field name; the project never reads or saves a `.env`. DataWeb tokens expire after six months. If a token was ever pasted into a chat, code or a screenshot, generate a new one in DataWeb.
@@ -229,3 +249,4 @@ python run.py all --replay config\replays\laptops-legacy-baseline.toml
 - Old snapshots have no payload hash and cannot prove which query made them, so the gated flow never reuses them; only a labeled replay reads them, and the replay checks each response hash.
 - `acquire --legacy-baseline` replaces the files a replay reads with new downloads (old files renamed and kept), after which the replay's hash check refuses them.
 - The baseline outputs contain absolute paths and timestamps, so the same data gives different hashes on another machine.
+

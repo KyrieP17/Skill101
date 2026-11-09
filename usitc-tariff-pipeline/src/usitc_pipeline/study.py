@@ -57,7 +57,7 @@ MONTH_PATTERN = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
 YEAR_PATTERN = re.compile(r"\d{4}")
 KNOWN_TABLES = {
     "study", "periods", "origins", "comparison", "event_windows", "events", "quantity",
-    "timeline", "segments", "brief", "context", "drilldown", "decomposition", "derived", "anomalies",
+    "timeline", "tariff_snapshot", "product_mix", "segments", "brief", "context", "industry_context", "drilldown", "decomposition", "derived", "anomalies",
 }
 # "both": first unit in the main columns, the second unit (e.g. kg) beside it.
 QUANTITY_BASES = ("first", "second", "both")
@@ -137,6 +137,76 @@ class Derived:
 
 
 @dataclass(frozen=True)
+class TariffSnapshotSpec:
+    """Explicit customs-entry context for a non-binding tariff snapshot."""
+
+    entry_date: str
+    hts_release_id: str
+    hts_release_date: str
+    origins: tuple[str, ...]
+    rate_column: str = "general"
+    preference_claim: str = "none"
+    entry_type: str = "consumption"
+    chapter_98: bool = False
+    quota_or_trq: bool = False
+    ad_cvd: bool = False
+    firm_specific_rate: bool = False
+    requires_binding_classification: bool = False
+
+    def as_json(self) -> dict[str, Any]:
+        return {
+            "entry_date": self.entry_date,
+            "hts_release_id": self.hts_release_id,
+            "hts_release_date": self.hts_release_date,
+            "origins": list(self.origins),
+            "rate_column": self.rate_column,
+            "preference_claim": self.preference_claim,
+            "entry_type": self.entry_type,
+            "chapter_98": self.chapter_98,
+            "quota_or_trq": self.quota_or_trq,
+            "ad_cvd": self.ad_cvd,
+            "firm_specific_rate": self.firm_specific_rate,
+            "requires_binding_classification": self.requires_binding_classification,
+        }
+
+
+@dataclass(frozen=True)
+class ProductMixSpec:
+    """One full-year HTS10 product-mix acquisition under an HTS6 scope."""
+
+    period: int
+    # Optional independent archived structure.  ``None`` preserves the legacy
+    # behavior: product mix reuses the study's [drilldown] inputs.
+    structure: str | None = None
+    release_metadata: str | None = None
+    codes: tuple[str, ...] = ()
+    hts_release_id: str = ""
+    hts_release_date: str = ""
+    structure_sha256: str = ""
+    release_metadata_sha256: str = ""
+
+    def as_json(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "period": self.period,
+            "codes": list(self.codes),
+            "hts_release_id": self.hts_release_id,
+            "hts_release_date": self.hts_release_date,
+            "structure_sha256": self.structure_sha256,
+        }
+        # Do not add new keys to legacy period-only studies.  Their fallback
+        # paths and hashes are already bound through the [drilldown] identity.
+        if self.structure is not None:
+            result.update(
+                {
+                    "structure": self.structure,
+                    "release_metadata": self.release_metadata,
+                    "release_metadata_sha256": self.release_metadata_sha256,
+                }
+            )
+        return result
+
+
+@dataclass(frozen=True)
 class StudySpec:
     study_id: str
     title: str
@@ -160,18 +230,26 @@ class StudySpec:
     timeline_file: str | None = None
     timeline_country_file: str | None = None
     timeline_records_sha256: str | None = None
+    tariff_snapshot: TariffSnapshotSpec | None = None
     segments: tuple[Segment, ...] = ()
     focal_split: bool = False
     hts4_context: bool = False
     context_hts6: tuple[str, ...] = ()
     drilldown_structure: str | None = None
     drilldown_structure_sha256: str | None = None
+    drilldown_release_metadata: str | None = None
+    drilldown_release_metadata_sha256: str | None = None
+    product_mix: ProductMixSpec | None = None
     decomposition: bool = False
     decomposition_windows: tuple[tuple[str, str], ...] = ()
     decomposition_mix: bool = False
     derived: tuple[Derived, ...] = ()
     anomalies: bool = False
     brief_candidates: bool = False
+    # External industry-cycle context is never fetched by the pipeline.  The
+    # setting only lets the deterministic next-step menu record that the user
+    # opted into a light, separately sourced web-research step.
+    industry_context_mode: str = "off"
 
     @property
     def second_quantity(self) -> bool:
@@ -214,6 +292,8 @@ class StudySpec:
                 "country": self.timeline_country_file,
                 "records_sha256": self.timeline_records_sha256,
             }
+        if self.tariff_snapshot:
+            settings["tariff_snapshot"] = self.tariff_snapshot.as_json()
         if self.segments:
             settings["segments"] = [segment.as_json() for segment in self.segments]
         brief: dict[str, bool] = {}
@@ -230,6 +310,11 @@ class StudySpec:
                 "structure": self.drilldown_structure,
                 "structure_sha256": self.drilldown_structure_sha256,
             }
+            if self.drilldown_release_metadata:
+                settings["drilldown"]["release_metadata"] = self.drilldown_release_metadata
+                settings["drilldown"]["release_metadata_sha256"] = self.drilldown_release_metadata_sha256
+        if self.product_mix:
+            settings["product_mix"] = self.product_mix.as_json()
         if self.decomposition:
             decomposition: dict[str, Any] = {"windows": [list(window) for window in self.decomposition_windows]}
             if self.decomposition_mix:
@@ -239,6 +324,8 @@ class StudySpec:
             settings["derived"] = [item.as_json() for item in self.derived]
         if self.anomalies:
             settings["anomalies"] = {"enabled": True}
+        if self.industry_context_mode != "off":
+            settings["industry_context"] = {"mode": self.industry_context_mode}
         return canonical_sha256(settings)
 
 
@@ -368,6 +455,80 @@ def _flag(table: dict[str, Any], key: str, name: str) -> bool:
     if not isinstance(value, bool):
         raise StudyError(f"{name}.{key} must be true or false")
     return value
+
+
+def _tariff_snapshot(
+    table: dict[str, Any],
+    *,
+    focal_origin: str,
+    structure: str | None,
+    release_metadata: str | None,
+    today: date,
+) -> TariffSnapshotSpec | None:
+    keys = {
+        "enabled", "entry_date", "hts_release_id", "hts_release_date", "origins", "rate_column", "preference_claim", "entry_type",
+        "chapter_98", "quota_or_trq", "ad_cvd", "firm_specific_rate", "requires_binding_classification",
+    }
+    unknown = sorted(set(table) - keys)
+    if unknown:
+        raise StudyError(f"[tariff_snapshot] has unknown fields: {unknown}")
+    if not table:
+        return None
+    enabled_value = table.get("enabled", True)
+    if not isinstance(enabled_value, bool):
+        raise StudyError("tariff_snapshot.enabled must be true or false")
+    if not enabled_value:
+        if set(table) - {"enabled"}:
+            raise StudyError("[tariff_snapshot] enabled = false cannot include snapshot settings")
+        return None
+    if not structure:
+        raise StudyError("[tariff_snapshot] needs [drilldown] structure so HTS8/HTS10 product lines and base rates are explicit")
+    if not release_metadata:
+        raise StudyError(
+            "[tariff_snapshot] needs [drilldown] release_metadata with the HTS release id, effective date and structure SHA-256"
+        )
+    entry_date = str(table.get("entry_date") or "").strip()
+    try:
+        parsed_date = date.fromisoformat(entry_date)
+    except ValueError as exc:
+        raise StudyError("tariff_snapshot.entry_date must be an explicit YYYY-MM-DD") from exc
+    if parsed_date > today:
+        raise StudyError("tariff_snapshot.entry_date cannot be in the future")
+    hts_release_id = str(table.get("hts_release_id") or "").strip()
+    if not hts_release_id:
+        raise StudyError("tariff_snapshot.hts_release_id must be explicit and non-empty")
+    hts_release_date = str(table.get("hts_release_date") or "").strip()
+    try:
+        parsed_release_date = date.fromisoformat(hts_release_date)
+    except ValueError as exc:
+        raise StudyError("tariff_snapshot.hts_release_date must be an explicit YYYY-MM-DD") from exc
+    if parsed_release_date > parsed_date:
+        raise StudyError("tariff_snapshot.hts_release_date cannot be later than entry_date")
+    origins = _string_list(table.get("origins", [focal_origin]), "tariff_snapshot.origins")
+    if not origins or any(origin.casefold() == "world" for origin in origins):
+        raise StudyError("tariff_snapshot.origins must name at least one actual country or area, not World")
+    strings: dict[str, str] = {}
+    for key, default in (
+        ("rate_column", "general"),
+        ("preference_claim", "none"),
+        ("entry_type", "consumption"),
+    ):
+        value = str(table.get(key, default)).strip()
+        if not value:
+            raise StudyError(f"tariff_snapshot.{key} must be non-empty")
+        strings[key] = value
+    return TariffSnapshotSpec(
+        entry_date=entry_date,
+        hts_release_id=hts_release_id,
+        hts_release_date=hts_release_date,
+        origins=origins,
+        **strings,
+        chapter_98=_flag(table, "chapter_98", "tariff_snapshot"),
+        quota_or_trq=_flag(table, "quota_or_trq", "tariff_snapshot"),
+        ad_cvd=_flag(table, "ad_cvd", "tariff_snapshot"),
+        firm_specific_rate=_flag(table, "firm_specific_rate", "tariff_snapshot"),
+        requires_binding_classification=_flag(table, "requires_binding_classification", "tariff_snapshot"),
+    )
 
 
 def _decomposition(table: dict[str, Any], monthly: YearRange | None) -> tuple[bool, tuple[tuple[str, str], ...]]:
@@ -572,6 +733,12 @@ def load_study(
     anomalies = _table(raw, "anomalies", required=False)
     if sorted(set(anomalies) - {"enabled"}):
         raise StudyError("[anomalies] supports only enabled")
+    industry_context = _table(raw, "industry_context", required=False)
+    if sorted(set(industry_context) - {"mode"}):
+        raise StudyError("[industry_context] supports only mode")
+    industry_context_mode = str(industry_context.get("mode", "off")).strip().lower()
+    if industry_context_mode not in {"off", "light"}:
+        raise StudyError('industry_context.mode must be "off" or "light"')
     context = _table(raw, "context", required=False)
     if sorted(set(context) - {"hts4", "hts6"}):
         raise StudyError("[context] supports only hts4 and hts6")
@@ -584,11 +751,59 @@ def load_study(
     if any(len(code) != 6 or not code.isdigit() for code in context_hts6) or len(set(context_hts6)) != len(context_hts6):
         raise StudyError("[context] hts6 must be distinct 6-digit HTS codes")
     drilldown = _table(raw, "drilldown", required=False)
-    if sorted(set(drilldown) - {"structure"}):
-        raise StudyError("[drilldown] supports only structure")
+    if sorted(set(drilldown) - {"structure", "release_metadata"}):
+        raise StudyError("[drilldown] supports only structure and release_metadata")
     if drilldown and "structure" not in drilldown:
         raise StudyError('[drilldown] needs structure = "scopes/<id>/v<k>/history/<HTS REST search>.json"')
     structure = _project_relative(drilldown["structure"], root, "drilldown.structure") if drilldown else None
+    release_metadata = (
+        _project_relative(drilldown["release_metadata"], root, "drilldown.release_metadata")
+        if drilldown.get("release_metadata") else None
+    )
+    product_mix_table = _table(raw, "product_mix", required=False)
+    if sorted(set(product_mix_table) - {"period", "structure", "release_metadata"}):
+        raise StudyError("[product_mix] supports only period, structure and release_metadata")
+    product_mix: ProductMixSpec | None = None
+    if product_mix_table:
+        if "period" not in product_mix_table:
+            raise StudyError("[product_mix] needs an explicit full-year period")
+        product_mix_period = _integer(product_mix_table["period"], "product_mix.period")
+        if annual is None or not (annual.start <= product_mix_period <= annual.end):
+            raise StudyError("product_mix.period must lie inside periods.annual")
+        if not structure:
+            raise StudyError(
+                "[product_mix] needs [drilldown] structure for the product hierarchy output"
+            )
+        product_mix_structure = (
+            _project_relative(product_mix_table["structure"], root, "product_mix.structure")
+            if product_mix_table.get("structure") else None
+        )
+        product_mix_release_metadata = (
+            _project_relative(
+                product_mix_table["release_metadata"], root, "product_mix.release_metadata"
+            )
+            if product_mix_table.get("release_metadata") else None
+        )
+        if (product_mix_structure is None) != (product_mix_release_metadata is None):
+            raise StudyError(
+                "[product_mix] structure and release_metadata must be supplied together"
+            )
+        if product_mix_structure is None and (not structure or not release_metadata):
+            raise StudyError(
+                "[product_mix] needs its own structure and release_metadata, or both fields in [drilldown]"
+            )
+        product_mix = ProductMixSpec(
+            period=product_mix_period,
+            structure=product_mix_structure,
+            release_metadata=product_mix_release_metadata,
+        )
+    snapshot = _tariff_snapshot(
+        _table(raw, "tariff_snapshot", required=False),
+        focal_origin=focal,
+        structure=structure,
+        release_metadata=release_metadata,
+        today=today or date.today(),
+    )
     decomposition_table = _table(raw, "decomposition", required=False)
     decomposition, decomposition_windows = _decomposition(decomposition_table, monthly)
 
@@ -608,15 +823,19 @@ def load_study(
         quantity_basis=quantity_basis,
         timeline_file=timeline_file,
         timeline_country_file=timeline_country,
+        tariff_snapshot=snapshot,
         segments=_segments(raw.get("segments")),
         focal_split=_flag(brief, "focal_split", "brief"),
         hts4_context=hts4,
         context_hts6=tuple(sorted(context_hts6)),
         drilldown_structure=structure,
+        drilldown_release_metadata=release_metadata,
+        product_mix=product_mix,
         decomposition=decomposition,
         decomposition_windows=decomposition_windows,
         decomposition_mix=_flag(decomposition_table, "mix", "decomposition"),
         derived=_derived(raw.get("derived"), annual, monthly, quantity_basis),
         anomalies=_flag(anomalies, "enabled", "anomalies"),
         brief_candidates=_flag(brief, "candidates", "brief"),
+        industry_context_mode=industry_context_mode,
     )

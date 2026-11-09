@@ -29,8 +29,9 @@ from usitc_pipeline.registry import (  # noqa: E402
     heading_ranges,
     load_registry,
     origins_overlap,
+    resolve_timeline_applicability,
 )
-from usitc_pipeline.timeline import is_primary_source  # noqa: E402
+from usitc_pipeline.timeline import annotate, is_primary_source, read_timeline  # noqa: E402
 
 SHA = "a" * 64
 SOURCES = [
@@ -40,6 +41,10 @@ SOURCES = [
     {"source_id": "hts-1", "kind": "hts_archive", "citation": "HTS ch99", "title": "t", "document_number": "",
      "publication_date": "", "signing_date": "", "url": "https://hts.usitc.gov/reststop/file?release=x",
      "sha256": SHA, "retrieved": "2026-11-08", "notes": ""},
+    {"source_id": "usitc-1", "kind": "usitc_report", "citation": "USITC Publication 1", "title": "t",
+     "document_number": "1", "publication_date": "2026-01-02", "signing_date": "",
+     "url": "https://www.usitc.gov/publications/example.pdf", "sha256": SHA,
+     "retrieved": "2026-11-08", "notes": ""},
 ]
 
 
@@ -98,6 +103,12 @@ class ParsingTests(unittest.TestCase):
         self.assertFalse(origins_overlap("Canada; Mexico", "China; Hong Kong"))
         self.assertTrue(origins_overlap("60 economies (incl. China and Hong Kong)", "China"))
 
+    def test_primary_source_accepts_official_usitc_hosts_only(self) -> None:
+        self.assertTrue(is_primary_source("https://www.usitc.gov/publications/safeguards/pub5738.pdf"))
+        self.assertTrue(is_primary_source("https://hts.usitc.gov/reststop/file?release=x"))
+        self.assertFalse(is_primary_source("https://usitc.gov.evil.example/publications/fake.pdf"))
+        self.assertFalse(is_primary_source("https://example.com/usitc-report.pdf"))
+
 
 class RegistryFileTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -117,6 +128,7 @@ class RegistryFileTests(unittest.TestCase):
         registry = load_registry(self.dir)
         self.assertEqual([m["measure_id"] for m in registry.measures][:2], ["old-list", "china-duty"])
         self.assertEqual(registry.measure("others")["heading_ranges"], [(202, 273)])
+        self.assertEqual(registry.sources["usitc-1"]["kind"], "usitc_report")
 
     def test_invalid_rows_are_refused(self) -> None:
         cases = [
@@ -125,7 +137,7 @@ class RegistryFileTests(unittest.TestCase):
             ({"measures": MEASURES + [measure("china-duty", "2025-01-01", "", "China")]}, "unique"),
             ({"measures": MEASURES + [measure("x", "2025-01-01", "", "China", status="待核对")]}, "says in notes"),
             ({"measures": MEASURES + [measure("x", "2025-13-01", "", "China")]}, "YYYY-MM-DD"),
-            ({"sources": [{**SOURCES[0], "url": "https://example.com/news"}, SOURCES[1]]}, "HTS archive, the Federal Register"),
+            ({"sources": [{**SOURCES[0], "url": "https://example.com/news"}, *SOURCES[1:]]}, "official USITC"),
             ({"sources": [{**SOURCES[0], "sha256": "abc"}, SOURCES[1]]}, "64 lowercase hex"),
             ({"coverage": COVERAGE + [{**COVERAGE[0], "measure_id": "nope"}]}, "unknown measure_id"),
             ({"coverage": COVERAGE + [{**COVERAGE[0], "coverage": "maybe", "hts": "8507.10"}]}, "coverage must be"),
@@ -166,6 +178,49 @@ class RegistryFileTests(unittest.TestCase):
         self.assertNotIn("old-list", [m["measure_id"] for m in result["missing_from_timeline"]])
         self.assertIn("old-list", [m["measure_id"] for m in check_timeline(registry, [], ["85076000"])["missing_from_timeline"]])
 
+    def test_only_verified_covered_rows_reach_product_tariff_outputs(self) -> None:
+        self.write(
+            coverage=COVERAGE + [
+                {"measure_id": "china-duty", "hts": "8517.13", "coverage": "covered",
+                 "evidence": "hts-1 note 2(s)", "status": "verified", "notes": ""},
+            ]
+        )
+        registry = load_registry(self.dir)
+        rows = [
+            timeline_row("2017-01-01", "MFN general rate", "", "product"),
+            timeline_row("2025-02-04", "Fentanyl duty (9903.01.20)", "China; Hong Kong"),
+            timeline_row("2025-04-05", "Reciprocal baseline (9903.01.25)", "All origins"),
+            timeline_row("2026-01-15", "Chip duty (9903.79.01)", "All origins"),
+            timeline_row("2026-02-24", "Surcharge (9903.03.01)", "All origins"),
+        ]
+        included, excluded = resolve_timeline_applicability(registry, rows, ["8517130000"])
+        self.assertEqual([row["coverage"] for row in included], ["base_rate", "applies"])
+        self.assertEqual(included[1]["registry_measure_ids"], "china-duty")
+        self.assertEqual(
+            {row["registry_measure_ids"]: row["coverage"] for row in excluded},
+            {"baseline": "exempt", "chips": "not_covered", "surcharge": "unresolved"},
+        )
+
+    def test_finer_coverage_never_leaks_to_a_whole_parent_scope(self) -> None:
+        self.write(
+            coverage=COVERAGE + [
+                {"measure_id": "china-duty", "hts": "", "coverage": "covered",
+                 "evidence": "hts-1 note generic", "status": "verified", "notes": ""},
+                {"measure_id": "china-duty", "hts": "8517.13.00.10", "coverage": "exempt",
+                 "evidence": "hts-1 exact exception", "status": "verified", "notes": ""},
+            ]
+        )
+        registry = load_registry(self.dir)
+        row = timeline_row("2025-02-04", "Duty (9903.01.20)", "China; Hong Kong")
+        included, excluded = resolve_timeline_applicability(registry, [row], ["851713"])
+        self.assertEqual(included, [])
+        self.assertEqual(excluded[0]["coverage"], "unresolved")
+        self.assertIn("coverage=unresolved", excluded[0]["exclusion_reason"])
+
+        included, excluded = resolve_timeline_applicability(registry, [row], ["8517130010"])
+        self.assertEqual(included, [])
+        self.assertEqual(excluded[0]["coverage"], "exempt")
+
 
 class ShippedRegistryTests(unittest.TestCase):
     def test_shipped_registry_is_valid_and_primary_only(self) -> None:
@@ -175,6 +230,30 @@ class ShippedRegistryTests(unittest.TestCase):
         for row in registry.measures:
             self.assertIn(row["status"], ("verified", "待核对"))
         self.assertIn("8517.13", {hts for _, hts in registry.coverage})
+
+    def test_memory_timeline_contains_only_effective_applicable_rows_after_filter(self) -> None:
+        registry = load_registry(PROJECT_ROOT / "config" / "tariff_registry")
+        timeline_dir = PROJECT_ROOT / "config" / "tariff_timelines"
+        records = [
+            *read_timeline(timeline_dir / "memory-integrated-circuits.csv", layer="product"),
+            *read_timeline(timeline_dir / "_country.csv", layer="country"),
+        ]
+        included, excluded = resolve_timeline_applicability(
+            registry, annotate(records), ["854232"], focal_origin="China"
+        )
+        self.assertTrue(included)
+        self.assertEqual({row["coverage"] for row in included}, {"base_rate", "applies"})
+        self.assertEqual({row["date_type"] for row in included}, {"effective"})
+        included_ids = {item for row in included for item in row["registry_measure_ids"].split("; ") if item}
+        self.assertNotIn("s301-review-report", included_ids)
+        self.assertNotIn("s232-semiconductors", included_ids)
+        self.assertNotIn("ieepa-reciprocal-baseline", included_ids)
+        self.assertNotIn("ieepa-usmca-exempt", included_ids)
+        self.assertIn("s232-semiconductors", {row["registry_measure_ids"] for row in excluded})
+        self.assertIn(
+            "ieepa-usmca-exempt",
+            {row["registry_measure_ids"] for row in excluded if row["coverage"] == "other_origin"},
+        )
 
 
 class CommandTests(unittest.TestCase):

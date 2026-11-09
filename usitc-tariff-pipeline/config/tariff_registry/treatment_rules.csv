@@ -1,0 +1,7 @@
+measure_id,effective_from,effective_to,action,rate_text,rate_type,stack_group,supersedes,layer,heading,status,source_ids,notes
+s301-list2,2018-08-23,,add,+25%,ad_valorem,s301-memory,,Section 301,9903.88.02,verified,fr-83-40823,8542.32.00 entered under the List 2 additional duty
+s301-semiconductors-50,2025-01-01,,replace,+50%,ad_valorem,s301-memory,s301-list2,Section 301,9903.91.05,verified,fr-89-76581,Replacement rate for covered semiconductor lines; do not add 25% and 50%
+ieepa-fentanyl-china,2025-02-04,,add,+10%,ad_valorem,ieepa-china-synthetic-opioid,,IEEPA,9903.01.20,verified,fr-90-9121; fr-90-9038,Synthetic-opioid-policy rationale created a broad China/Hong Kong duty layer that included 8542.32
+ieepa-fentanyl-china-20,2025-03-04,,replace,+20%,ad_valorem,ieepa-china-synthetic-opioid,ieepa-fentanyl-china,IEEPA,9903.01.24,verified,fr-90-11463; fr-90-11426,Replaces the prior 10% layer
+ieepa-fentanyl-china-10,2025-11-10,,replace,+10%,ad_valorem,ieepa-china-synthetic-opioid,ieepa-fentanyl-china-20,IEEPA,9903.01.24,verified,fr-90-50725,Replaces the prior 20% layer
+ieepa-ended,2026-02-20,,end,,other,ieepa-china-synthetic-opioid,ieepa-fentanyl-china-10,IEEPA,9903.01.24,verified,fr-91-9437; usitc-pub-5738,EO 14389 ended this IEEPA layer effective 2026-02-20；Section 301 remains in force

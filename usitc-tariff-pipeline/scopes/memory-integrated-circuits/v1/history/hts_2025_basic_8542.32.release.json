@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "release_id": "2025HTSBasic",
+  "effective_date": "2025-01-01",
+  "structure_file": "hts_2025_basic_8542.32.json",
+  "source_url": "https://www.usitc.gov/sites/default/files/tata/hts/hts_2025_basic_edition_json.json",
+  "source_sha256": "380241ab36345b6689925498949c3411e51eb2e587ceb8c27564f3a3ec6deb98",
+  "archive_source_sha256": "fe9de40662e7ab4d263f3dfb2d9090f8f78892bf881ce521628bbb5440829d01",
+  "release_page": "https://www.usitc.gov/harmonized_tariff_information/hts/archive/list?page=2",
+  "retrieved_at_utc": "2026-11-09T06:44:23.7829482Z"
+}

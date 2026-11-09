@@ -76,6 +76,51 @@ unit = "both"
 # path>, which prints the URL, bytes and SHA-256 to record in SOURCES.md.
 [drilldown]
 structure = "scopes/example-product/v1/history/hts_rest_search_0000.00.json"
+# Required when [tariff_snapshot] is enabled. This JSON sidecar records
+# schema_version=1, release_id, effective_date, structure_file, the approved
+# acquisition source_url and source_sha256; the pipeline cross-checks them.
+# Copy assets/hts_release_metadata_template.json beside the structure first.
+release_metadata = "scopes/example-product/v1/history/hts_rest_search_0000.00.release.json"
+
+# Optional measured HTS10 import mix for an HTS6 study. This adds exactly two
+# annual DataWeb jobs for the selected full year: all reported origins and an
+# independent World total. The release sidecar above must be effective in the
+# same year and match every approved HTS6 scope line for that year.
+# [product_mix]
+# period = 2025
+
+# Optional non-binding HTS-based tariff treatment snapshot.  It resolves each
+# HTS8/HTS10 child for the explicit entry assumptions and writes
+# tables/tariff_treatment_snapshot.csv.  entry_date never defaults to today;
+# hts_release_date must be no later than entry_date and the structure above
+# must be that archived HTS release.  Never use today's structure to backcast
+# a historical entry.  V1 covers Column 1-General plus verified Chapter 99
+# layers for ordinary consumption entries.
+# [tariff_snapshot]
+# entry_date = "2025-09-30"
+# hts_release_id = "2025HTSRev19"
+# hts_release_date = "2025-07-01"
+# origins = ["China"]
+# rate_column = "general"
+# preference_claim = "none"
+# entry_type = "consumption"
+# chapter_98 = false
+# quota_or_trq = false
+# ad_cvd = false
+# firm_specific_rate = false
+# requires_binding_classification = false
+
+# External industry-cycle context is opt-in.  "light" only adds a separately
+# labeled optional web-research item to tables/next_steps.csv; it does not
+# browse or authorize browsing.  Keep off for a DataWeb-only study.
+[industry_context]
+mode = "off"
+
+# [drilldown] also writes tables/product_hierarchy_matrix.csv. HTS10 shares
+# stay unavailable unless [product_mix] acquires same-period HTS10 all-origin
+# and independent World data and reconciles it to the separately queried
+# parent HTS6 World total.
+# Every run writes tables/proxy_notes.csv and at most three next_steps rows.
 
 # Change decomposition -> tables/share_decomposition.csv: each origin's share
 # change split into its own value and all other origins, value change split

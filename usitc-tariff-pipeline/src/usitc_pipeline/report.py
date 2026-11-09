@@ -26,7 +26,7 @@ SECTIONS = (
     ("events", "事件窗口", ("03_event_path",)),
     ("concentration", "来源地集中度（HHI）", ("07_concentration",)),
     ("duty", "实际税率（realized duty）", ("09_realized_duty",)),
-    ("data", "数据核对与口径", ("10_world_check",)),
+    ("data", "数据核对与口径", ("10_world_check", "12_product_mix")),
 )
 # Each key point takes the first available finding of its alternatives, so a
 # study without an annual comparison still reports its YTD equivalent.
@@ -36,6 +36,7 @@ KEY_POINT_ORDER = (
     ("scale_annual",),
     ("ytd",),
     ("realized_duty", "ytd_realized_duty"),
+    ("tariff_snapshot",),
     ("event_low",),
     ("event_latest",),
     ("quantity_blocked",),
@@ -251,6 +252,21 @@ def _unit_word(unit: Any) -> str:
 
 def _feature_findings(features: dict[str, Any], focal: str, identity: dict[str, Any]) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
+    snapshot_rows = features.get("tariff_snapshot") or []
+    if snapshot_rows:
+        statuses = sorted({str(row.get("snapshot_status") or row.get("status") or "Unresolved") for row in snapshot_rows})
+        origins = list(dict.fromkeys(str(row.get("origin") or "") for row in snapshot_rows))
+        open_rows = sum(str(row.get("status") or "").casefold() != "resolved" for row in snapshot_rows)
+        label = "Measured" if statuses == ["Resolved"] else "Unknown"
+        findings.append(
+            _finding(
+                "tariff_snapshot", "duty", label,
+                f"HTS 法定关税处理快照（{', '.join(origins)}）：总体状态 {', '.join(statuses)}；"
+                f"{len(snapshot_rows)} 个产品行中 {open_rows} 行仍有 Mixed、Conditional 或 Unresolved 项。"
+                "快照保留 Column 1-General 与已核实 Chapter 99 公式，不以 realized duty 代替法定处理。",
+                "tables/tariff_treatment_snapshot.csv", statuses=statuses, rows=len(snapshot_rows), open_rows=open_rows,
+            )
+        )
     status = features.get("heading_map_status")
     if status and not features.get("heading_map"):
         findings.append(_finding(
@@ -490,16 +506,17 @@ def build_findings(
     findings += _feature_findings(features, focal_origin, identity)
     timeline = features.get("timeline") or []
     if timeline:
-        unchecked = sum(not row["user_checked"] for row in timeline)
         to_verify = sum(bool(row["needs_check"]) for row in timeline)
+        sourced = len(timeline) - to_verify
         findings.append(
             _finding(
                 "timeline", "events", "Unknown",
                 f"关税时间线 {len(timeline)} 条（按税号 {sum(row['layer'] == 'product' for row in timeline)} 条，"
-                f"按国家 {sum(row['layer'] == 'country' for row in timeline)} 条）：{unchecked} 条未经用户核对；"
-                f"{to_verify} 条没有一手来源（HTS 档案、Federal Register、USTR、CBP），日期标\"待核对\"。"
+                f"按国家 {sum(row['layer'] == 'country' for row in timeline)} 条）：{sourced} 条有"
+                f"一手来源（HTS 档案、Federal Register、USTR、CBP），{to_verify} 条来源仍待核实。"
+                "表中仅保留通过关税库 coverage=applies 筛选的商品适用措施和单列的 MFN 基础税率。"
                 "时间线只是背景，和进口数据的时间对齐不是因果识别。",
-                "tables/tariff_timeline.csv", rows=len(timeline), unchecked=unchecked, to_verify=to_verify,
+                "tables/tariff_timeline.csv", rows=len(timeline), sourced=sourced, to_verify=to_verify,
             )
         )
 
@@ -520,7 +537,10 @@ def build_findings(
         **({"timeline": timeline} if timeline else {}),
         **{
             name: features[name]
-            for name in ("focal_split", "segment_series", "drilldown_menu", "heading_map", "share_decomposition")
+            for name in (
+                "focal_split", "segment_series", "drilldown_menu", "product_hierarchy_matrix", "heading_map",
+                "share_decomposition", "proxy_notes", "next_steps", "tariff_snapshot"
+            )
             if features.get(name)
         },
         "boundaries": [
@@ -566,15 +586,108 @@ def timeline_table(rows: list[dict[str, Any]]) -> list[str]:
         return str(value or "").replace("|", "/").replace("\n", " ") or "—"
 
     table = [
-        "| 日期 | 类型 | 措施 | 税率变化 | 适用编码 | 来源地 | 来源 | 核对 |",
-        "|---|---|---|---|---|---|---|---|",
+        "| 日期 | 类型 | 措施/法源编号 | 税率变化 | 适用编码 | 来源地 | 数据来源 |",
+        "|---|---|---|---|---|---|---|",
     ]
     for row in rows:
-        status = ("用户已核对" if row.get("user_checked") else "未经用户核对") + ("；待核对（无一手来源）" if row.get("needs_check") else "")
+        source = cell(row.get("source"))
+        if row.get("source_url"):
+            source += f" ([原文]({row['source_url']}))"
+        if row.get("needs_check"):
+            source += "；来源待核实"
         table.append(
             f"| {row['date']} | {'生效' if row['date_type'] == 'effective' else '宣布'} | {cell(row['measure'])} | "
             f"{cell(row['rate_change'])} | {cell(row['applies_to']) if row['applies_to'] else '整个 scope'} | "
-            f"{cell(row['origins']) if row['origins'] else '全部'} | {cell(row['source'])} | {status} |"
+            f"{cell(row['origins']) if row['origins'] else '全部'} | {source} |"
+        )
+    return table
+
+
+def proxy_notes_table(rows: list[dict[str, Any]]) -> list[str]:
+    """Compact source/formula/boundary table for every proxy used in the study."""
+
+    def cell(value: Any) -> str:
+        return str(value or "").replace("|", "/").replace("\n", " ") or "—"
+
+    table = [
+        "| 指标/代理 | 证据 | 来源字段 | 公式 | 单位 | 代表什么 | 不代表什么 | 质量提示 |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for row in rows:
+        table.append(
+            f"| {cell(row['item_id'])} | {cell(row['evidence_label'])} | {cell(row['source_fields'])} | "
+            f"{cell(row['formula'])} | {cell(row['unit'])} | {cell(row['represents'])} | "
+            f"{cell(row['does_not_represent'])} | {cell(row['quality_warning'])} |"
+        )
+    return table
+
+
+def product_hierarchy_table(rows: list[dict[str, Any]]) -> list[str]:
+    """Compact HTS6 -> HTS8 -> HTS10 structure and product-share status."""
+
+    def cell(value: Any) -> str:
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return "—"
+        return str(value).replace("|", "/").replace("\n", " ") or "—"
+
+    table = [
+        "| HTS8 法定税率行 | HTS10 统计品类 | 产品 | 单位 | HTS8 Column 1-General | 附加税状态/公式 | HTS10 占 HTS6 进口额 | 数据状态 |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for row in rows:
+        share = row.get("share_of_parent_hts6_pct")
+        share_text = "—" if share is None or (isinstance(share, float) and pd.isna(share)) else f"{float(share):.1f}%"
+        treatment = " / ".join(
+            item for item in (cell(row.get("additional_tariff_status")), cell(row.get("additional_tariff_rate"))) if item != "—"
+        ) or "—"
+        table.append(
+            f"| {cell(row.get('hts8_code'))} | {cell(row.get('hts10_code'))} | {cell(row.get('hts10_description'))} | "
+            f"{cell(row.get('quantity_unit'))} | {cell(row.get('hts8_mfn_rate'))} | {treatment} | {share_text} | "
+            f"{cell(row.get('product_share_status'))} |"
+        )
+    return table
+
+
+def next_steps_table(rows: list[dict[str, Any]]) -> list[str]:
+    """At most three deterministic follow-ups from validated study states."""
+
+    def cell(value: Any) -> str:
+        return str(value or "").replace("|", "/").replace("\n", " ") or "—"
+
+    table = [
+        "| 优先级 | 下一步 | 原因 | 需要的输入 | 预期输出 | 是否需联网/新数据 |",
+        "|---|---|---|---|---|---|",
+    ]
+    for row in rows:
+        table.append(
+            f"| {cell(row.get('priority'))} | {cell(row.get('title'))} | {cell(row.get('rationale'))} | "
+            f"{cell(row.get('required_input'))} | {cell(row.get('expected_output'))} | "
+            f"{cell(row.get('needs_network_or_new_data'))} |"
+        )
+    return table
+
+
+def tariff_snapshot_table(rows: list[dict[str, Any]]) -> list[str]:
+    """Product-level Column 1-General plus verified Chapter 99 treatment."""
+
+    def cell(value: Any) -> str:
+        return str(value or "").replace("|", "/").replace("\n", " ") or "—"
+
+    table = [
+        "| HTS 产品行 | 产品 | 原产地 | 进口日期 | 状态 | Column 1-General | Chapter 99 层 | 处理公式 | 未解决/条件项 |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for row in rows:
+        open_items = "; ".join(
+            item for item in (cell(row.get("unresolved_reasons")), cell(row.get("conditional_reasons"))) if item != "—"
+        ) or "—"
+        chapter99 = " ".join(
+            item for item in (cell(row.get("chapter_99_headings")), cell(row.get("additional_rate_text"))) if item != "—"
+        ) or "—"
+        table.append(
+            f"| {cell(row.get('hts'))} | {cell(row.get('description'))} | {cell(row.get('origin'))} | "
+            f"{cell(row.get('entry_date'))} | {cell(row.get('status'))} | {cell(row.get('base_rate_text'))} | "
+            f"{chapter99} | {cell(row.get('treatment_formula'))} | {open_items} |"
         )
     return table
 
@@ -643,12 +756,25 @@ def render_report(
         lines += [f"## {number}. {title}", ""]
         if section == "events" and timeline:
             lines += timeline_table(timeline) + [""]
+        if section == "duty" and findings.get("tariff_snapshot"):
+            lines += [
+                "HTS 法定关税处理快照（非 CBP binding ruling；不以 realized duty 代替法定税率）**[Measured/Derived]** — 来源：`tables/tariff_treatment_snapshot.csv`",
+                "",
+                *tariff_snapshot_table(findings["tariff_snapshot"]),
+                "",
+            ]
         if section == "scale" and findings.get("focal_split"):
             lines += ["焦点来源地、其他来源地和总计 **[Derived]** — 来源：`tables/focal_split.csv`", ""]
             lines += focal_split_table(findings["focal_split"]) + [""]
         if section == "data" and findings.get("drilldown_menu"):
             lines += ["下钻菜单（只看产品和税率，不看贸易数据）**[Measured]** — 来源：`tables/drilldown_menu.csv`", ""]
             lines += drilldown_table(findings["drilldown_menu"]) + [""]
+        if section == "data" and findings.get("product_hierarchy_matrix"):
+            lines += [
+                "产品层级矩阵（HTS8 是法定税率行，HTS10 是统计品类；份额缺数据时不推算）**[Measured/Derived]** — 来源：`tables/product_hierarchy_matrix.csv`",
+                "",
+            ]
+            lines += product_hierarchy_table(findings["product_hierarchy_matrix"]) + [""]
         if section == "sources" and findings.get("segment_series"):
             segment_rows = findings["segment_series"]
             periods = segment_periods(segment_rows, findings["identity"])
@@ -667,6 +793,24 @@ def render_report(
         lines += [f"- {line(item)}" for item in items] or ["- 本节没有可报告的结果。"]
         lines.append("")
     lines += ["## 不能下的结论", "", *[f"- {item}" for item in findings["boundaries"]], ""]
+    if findings.get("proxy_notes"):
+        lines += [
+            "## 口径与代理变量",
+            "",
+            "每个代理都列出来源字段、公式、分母以及解释边界 **[Measured/Derived]** — 来源：`tables/proxy_notes.csv`",
+            "",
+            *proxy_notes_table(findings["proxy_notes"]),
+            "",
+        ]
+    if findings.get("next_steps"):
+        lines += [
+            "## 下一步菜单",
+            "",
+            "菜单最多三项，按未解决的关税处理、缺失的产品份额和异常口径依次排序；它不会自动联网或下载数据。",
+            "",
+            *next_steps_table(findings["next_steps"]),
+            "",
+        ]
     lines += [
         "## 交付文件",
         "",

@@ -1,0 +1,77 @@
+# Memory integrated circuits (HTS6 854232), first coarse sourcing and tariff study.
+# Scope approved in chat with continuity explicitly unverified. The first run
+# keeps every origin, then highlight will be filled from the largest non-China
+# origins and the analysis will be rerun without downloading again.
+
+[study]
+study_id = "memory-integrated-circuits-2017-2026"
+title = "U.S. memory integrated circuit imports (HTS 8542.32) by origin, 2017-2026"
+scope_manifest = "scopes/memory-integrated-circuits/v1/manifest.json"
+
+[periods]
+# 2025 is the last complete year; monthly data are requested through 2026 for
+# event timing around the 2018 Section 301 action, the 2025 increase and YTD.
+annual = { start = 2017, end = 2025 }
+monthly = { start = 2017, end = 2026 }
+
+[origins]
+focal = "China"
+highlight = ["Taiwan", "South Korea", "Japan", "Malaysia", "Singapore", "Vietnam"]
+
+[comparison]
+base_year = 2024
+compare_year = 2025
+
+# No named event windows yet: tariff dates are carried by the product and
+# country timelines; decomposition windows will be added from the first run's
+# window_candidates table.
+[events]
+ids = []
+
+[timeline]
+file = "config/tariff_timelines/memory-integrated-circuits.csv"
+country = "config/tariff_timelines/_country.csv"
+
+[brief]
+focal_split = true
+candidates = true
+
+[anomalies]
+enabled = true
+
+# No [quantity] table: all included statistical lines use No. and the scope
+# records no second quantity unit.
+
+[drilldown]
+structure = "scopes/memory-integrated-circuits/v1/history/hts_rest_search_8542.32.json"
+release_metadata = "scopes/memory-integrated-circuits/v1/history/hts_rest_search_8542.32.release.json"
+
+# User-authorized full-year product mix.  The archived structure is the 2025
+# Basic Edition in force at the start of the measured year; it is deliberately
+# independent from the current release used by the tariff snapshot below.
+[product_mix]
+period = 2025
+structure = "scopes/memory-integrated-circuits/v1/history/hts_2025_basic_8542.32.json"
+release_metadata = "scopes/memory-integrated-circuits/v1/history/hts_2025_basic_8542.32.release.json"
+
+# Current, non-binding product-level tariff treatment.  This is intentionally
+# separate from realized duty in DataWeb.  The current HTS structure is not
+# used to back-cast historical legal treatment.
+[tariff_snapshot]
+entry_date = "2026-11-09"
+hts_release_id = "2026HTSRev22"
+hts_release_date = "2026-10-30"
+origins = ["China"]
+rate_column = "general"
+preference_claim = "none"
+entry_type = "consumption"
+
+[decomposition]
+enabled = true
+# Single HTS6 code, so price-versus-code-mix decomposition is not applicable.
+windows = [
+  ["2018-06", "2018-08"],
+  ["2018-08", "2018-09"],
+  ["2019-01", "2019-06"],
+  ["2024-12", "2025-02"],
+]

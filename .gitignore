@@ -2,6 +2,7 @@
 .venv/
 __pycache__/
 *.pyc
+*.rar
 .pytest_cache/
 
 # Secrets and machine-specific config

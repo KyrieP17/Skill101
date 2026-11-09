@@ -635,6 +635,10 @@ class SkillStructureTests(unittest.TestCase):
                     config = json.loads((SKILL_ROOT / name).read_text(encoding="utf-8"))
                     self.assertLessEqual(set(config), {"project_root", "python"})
 
+    def test_example_config_does_not_hard_code_a_platform_interpreter(self):
+        config = json.loads((SKILL_ROOT / "config.example.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(config), {"project_root"})
+
 
 if __name__ == "__main__":
     unittest.main()

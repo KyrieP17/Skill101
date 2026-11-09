@@ -1,0 +1,42 @@
+{
+  "schema_version": 2,
+  "artifact_type": "scope_approval_card",
+  "created_at_utc": "2026-11-09T03:24:51.061214+00:00",
+  "scope_path": "reviewed.csv",
+  "scope_file_sha256": "fee5b04a2c758b0401cc323936505c897ec2e89ee6e657e43748792912794259",
+  "scope_sha256": "e007c6aadcdb7e2d6811f1e811b721fcc0f3a18c15dc0df3fe257fd7d49680ac",
+  "record_sha256": "14f24df84372d97491397298f55d952af87e618fe39ef4ffcb83d6389a25096f",
+  "scope_id": "memory-integrated-circuits",
+  "scope_version": "1",
+  "product_id": "memory-integrated-circuits",
+  "product_name": "Memory integrated circuits - chip-level proxy",
+  "hts_level": 6,
+  "hts_releases": [
+    "2026HTSRev22"
+  ],
+  "included_codes": [
+    "854232"
+  ],
+  "excluded_codes": [
+    "847330",
+    "852351",
+    "854231",
+    "854233",
+    "854239",
+    "854290"
+  ],
+  "coverage": {
+    "start": "2017-01-01",
+    "end": "2026-12-31",
+    "gaps": []
+  },
+  "quantity_unit": "no.",
+  "quantity_comparable": true,
+  "second_unit": null,
+  "second_units": [],
+  "continuity": {
+    "status": "unverified",
+    "warning": "连续性未核实: HTS codes were not checked against archived HTS editions for every year"
+  },
+  "approval_effect": "none; the reviewer approves by running scope-approve in their own terminal"
+}

@@ -24,8 +24,9 @@ Errors (``report-pdf`` refuses the brief):
   ("因为", "导致", "due to", ...) outside a question.
 * ``mention``: with ``tables/mention_list.csv``, every item appears.
 
-Warnings: the key findings are not 4-6 numbered items.  Numbers without a
-unit (years, counts, codes) are counted but not traced.
+Warnings: the key findings are not 4-6 numbered items.  Every numeric token is
+counted as parsed, ambiguous, or skipped; an adjacent but unknown unit is an
+error instead of being silently skipped.
 """
 
 from __future__ import annotations
@@ -53,12 +54,12 @@ SECTIONS = (
 )
 # Classification order: specific keys first, so "Drill-down (HTS8)" is not the body.
 CLASSIFY = ("findings", "timeline", "questions", "drilldown", "notes", "body")
-HEDGES = ("可能是", "也许是", "或许是", "大概是", "probably")
+HEDGES = ("可能是", "也许是", "或许是", "大概是", "probably", "likely", "possibly", "may be", "suggests")
 CAUSAL = (
     "可能因为", "可能由于", "因为", "由于", "导致", "归因", "归功于", "得益于", "受益于", "源于", "驱动", "推动",
     "引发", "造成", "迫使", "促使", "产能转移", "供应链转移", "转产", "搬迁",
-    "because", "due to", "caused", "driven by", "led to", "leads to", "as a result of", "thanks to",
-    "attributable", "owing to", "resulted in", "relocat",
+    "because", "due to", "caused", "driven", "led to", "leads to", "as a result of", "thanks to",
+    "attributable", "owing to", "resulted in", "relocat", "shifted production", "moved production",
 )
 
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
@@ -79,12 +80,14 @@ BLANK = (
     re.compile(r"(?<![\d.])\d{4}\.\d{2}(?:\.\d{2}){0,2}(?![\d])"),
 )
 NUMBER = re.compile(r"(?<![A-Za-z0-9_.,])(?P<sign>[+\-−±]?)(?P<num>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?!\d)")
-DOLLAR = re.compile(r"\$\s*[+\-−]?$")
+CURRENCY_PREFIX = re.compile(r"(?:US\$|\$|USD)\s*[+\-−]?$", re.IGNORECASE)
+UNKNOWN_CURRENCY = r"(?:EUR|GBP|JPY|CNY|RMB|CAD|AUD|CHF|KRW|TWD|HKD|SGD|INR|MXN|VND)"
+UNKNOWN_PREFIX_UNIT = re.compile(rf"(?:\b{UNKNOWN_CURRENCY}|[A-Z]{{1,3}}\$)\s*[+\-−]?$")
 # Kinds of table cells a shown number can come from (from the column name, see column_kind).
 PCT, PP, USD, QUANTITY, UNIT_VALUE, RATIO = "pct", "pp", "usd", "quantity", "unit_value", "ratio"
 # unit text -> (scales the shown number may have been divided by, cell kinds it may come from); longest first.
-UNITS: tuple[tuple[str, tuple[float, ...], frozenset[str]], ...] = tuple(
-    (text, scales, frozenset(kinds))
+UNITS: tuple[tuple[str, tuple[float, ...], frozenset[str]], ...] = tuple(sorted(
+    ((text, scales, frozenset(kinds))
     for text, scales, kinds in (
         ("个百分点", (1.0, 0.01), {PP}), ("百分点", (1.0, 0.01), {PP}), ("pp", (1.0, 0.01), {PP}),
         ("%", (1.0, 0.01), {PCT}), ("％", (1.0, 0.01), {PCT}),
@@ -92,17 +95,41 @@ UNITS: tuple[tuple[str, tuple[float, ...], frozenset[str]], ...] = tuple(
         ("亿部", (1e8,), {QUANTITY}), ("亿件", (1e8,), {QUANTITY}), ("亿", (1e8,), {USD, QUANTITY}),
         ("万吨", (1e7, 1e4), {QUANTITY}), ("万部", (1e4,), {QUANTITY}), ("万件", (1e4,), {QUANTITY}),
         ("万", (1e4,), {USD, QUANTITY}), ("百万", (1e6,), {USD, QUANTITY}),
+        ("USD per kilogram", (1.0,), {UNIT_VALUE}), ("USD/kilogram", (1.0,), {UNIT_VALUE}),
+        ("USD per unit", (1.0,), {UNIT_VALUE}), ("USD/unit", (1.0,), {UNIT_VALUE}),
+        ("USD per piece", (1.0,), {UNIT_VALUE}), ("USD/piece", (1.0,), {UNIT_VALUE}),
+        ("USD per kg", (1.0,), {UNIT_VALUE}), ("USD/kg", (1.0,), {UNIT_VALUE}),
+        ("US$ per unit", (1.0,), {UNIT_VALUE}), ("US$/unit", (1.0,), {UNIT_VALUE}),
+        ("per kilogram", (1.0,), {UNIT_VALUE}), ("/kilogram", (1.0,), {UNIT_VALUE}),
+        ("per unit", (1.0,), {UNIT_VALUE}), ("/unit", (1.0,), {UNIT_VALUE}),
+        ("per piece", (1.0,), {UNIT_VALUE}), ("/piece", (1.0,), {UNIT_VALUE}),
+        ("per kg", (1.0,), {UNIT_VALUE}), ("/kg", (1.0,), {UNIT_VALUE}),
         ("美元/部", (1.0,), {UNIT_VALUE}), ("美元/件", (1.0,), {UNIT_VALUE}), ("美元/千克", (1.0,), {UNIT_VALUE}),
         ("美元/公斤", (1.0,), {UNIT_VALUE}), ("美元/吨", (1.0,), {UNIT_VALUE}),
-        ("美元", (1.0,), {USD, UNIT_VALUE}), ("USD", (1.0,), {USD, UNIT_VALUE}), ("倍", (1.0,), {RATIO}), ("×", (1.0,), {RATIO}),
+        ("USD billion", (1e9,), {USD}), ("USD bn", (1e9,), {USD}),
+        ("billion USD", (1e9,), {USD}), ("bn USD", (1e9,), {USD}),
+        ("USD million", (1e6,), {USD}), ("USD mn", (1e6,), {USD}),
+        ("million USD", (1e6,), {USD}), ("mn USD", (1e6,), {USD}),
+        ("美元", (1.0,), {USD, UNIT_VALUE}), ("USD", (1.0,), {USD, UNIT_VALUE}),
+        ("倍", (1.0,), {RATIO}), ("×", (1.0,), {RATIO}), ("x", (1.0,), {RATIO}),
         ("billion", (1e9,), {USD}), ("bn", (1e9,), {USD}), ("million", (1e6,), {USD, QUANTITY}), ("mn", (1e6,), {USD, QUANTITY}),
         ("千克", (1.0,), {QUANTITY}), ("公斤", (1.0,), {QUANTITY}), ("kg", (1.0,), {QUANTITY}),
         ("吨", (1e3, 1.0), {QUANTITY}), ("部", (1.0,), {QUANTITY}), ("件", (1.0,), {QUANTITY}),
-    )
+    )), key=lambda item: len(item[0]), reverse=True)
 )
-UNIT = re.compile(r"\s*(" + "|".join(re.escape(text) for text, _, _ in UNITS) + r")(?![A-Za-z]|(?<=部)分)")
+UNIT = re.compile(r"\s*(" + "|".join(re.escape(text) for text, _, _ in UNITS) + r")(?![A-Za-z]|(?<=部)分)", re.IGNORECASE)
 SCALES = {text: scales for text, scales, _ in UNITS}
 KINDS = {text: kinds for text, _, kinds in UNITS}
+CANONICAL_UNIT = {text.casefold(): text for text, _, _ in UNITS}
+# Adjacent measurement-looking text that is not in ``UNITS`` is not silently
+# treated as a count.  Long ordinary nouns ("countries", "lines") remain
+# intentional unitless counts, while currency/short unit tokens and per-X
+# phrases are surfaced for correction.
+UNKNOWN_SUFFIX_UNIT = re.compile(
+    rf"\s*(?P<unit>(?:(?i:per)\s+[A-Za-z][A-Za-z-]*|/[A-Za-z][A-Za-z-]*|\b{UNKNOWN_CURRENCY}\b|"
+    r"\b(?:LB|LBS|OZ|GM|MT|EA|PC|PCS|GB|MB|TB|GBPS|KWH|MWH|KW|MW)\b))",
+    re.IGNORECASE,
+)
 # Cells that can back any unit: free text (a timeline's "+10%") and the generic
 # value columns of the pipeline's own brief tables.
 ANY = "any"
@@ -122,6 +149,7 @@ class Number:
     unit: str | None
     start: int
     end: int
+    ambiguous_unit: str | None = None
 
 
 @dataclass
@@ -212,11 +240,21 @@ def numbers(text: str, default_unit: str | None = None) -> list[Number]:
             value = -value
         decimals = len(raw.split(".")[1]) if "." in raw else 0
         unit_match = UNIT.match(clean, match.end())
-        unit = unit_match.group(1) if unit_match else None
+        unit = CANONICAL_UNIT[unit_match.group(1).casefold()] if unit_match else None
         end = unit_match.end() if unit_match else match.end()
-        if unit is None and DOLLAR.search(clean[: match.start()]):
+        currency_prefix = CURRENCY_PREFIX.search(clean[: match.start()])
+        if unit is None and currency_prefix:
             unit = "USD"
-        found.append(Number(text[match.start():end].strip(), value, decimals, unit, match.start(), end))
+        ambiguous_unit = None
+        if unit is None:
+            unknown_prefix = UNKNOWN_PREFIX_UNIT.search(clean[: match.start()])
+            unknown_suffix = UNKNOWN_SUFFIX_UNIT.match(clean, match.end())
+            if unknown_prefix:
+                ambiguous_unit = unknown_prefix.group(0).strip()
+            elif unknown_suffix:
+                ambiguous_unit = unknown_suffix.group("unit").strip()
+                end = unknown_suffix.end()
+        found.append(Number(text[match.start():end].strip(), value, decimals, unit, match.start(), end, ambiguous_unit))
     for index in range(len(found) - 2, -1, -1):
         this, after = found[index], found[index + 1]
         if this.unit is None and after.unit and SEPARATOR.match(clean[this.end:after.start]):
@@ -240,11 +278,11 @@ def header_unit(header: str) -> str | None:
     text = header.strip()
     bracket = HEADER_UNIT.search(text)
     if bracket:
-        found = [match.group(1) for match in UNIT.finditer(bracket.group(1))]
+        found = [CANONICAL_UNIT[match.group(1).casefold()] for match in UNIT.finditer(bracket.group(1))]
         if found:
             return max(found, key=lambda unit: max(SCALES[unit]))
     whole = UNIT.fullmatch(text)
-    return whole.group(1) if whole else None
+    return CANONICAL_UNIT[whole.group(1).casefold()] if whole else None
 
 
 def block_numbers(block: Block) -> list[tuple[int, Number]]:
@@ -270,12 +308,12 @@ def column_kind(name: str) -> str | None:
     name = name.casefold()
     if name.endswith("_pp"):
         return PP
+    if name.endswith("_pct") or "share" in name or "rate" in name:
+        return PCT
     if name.startswith("value_change") and name.endswith("_usd"):
         return USD  # value_change_from_unit_value_usd is dollars of value change, not a unit value
     if "unit_value" in name:
         return UNIT_VALUE
-    if name.endswith("_pct") or "share" in name or "rate" in name:
-        return PCT
     if name.endswith("_usd"):
         return USD
     if "quantity" in name:
@@ -454,7 +492,11 @@ def check_brief(output_dir: str | Path, *, manifest: dict[str, Any], chart_manif
 
     allowed = validated_sources(manifest, chart_manifest)
     index = _Index(output_dir)
-    counts = {"checked": 0, "traced": 0, "untraced": 0, "unsourced": 0, "without_unit": 0}
+    counts = {
+        "numeric_tokens": 0, "parsed": 0, "traced": 0, "ambiguous": 0, "skipped": 0,
+        # Backward-compatible fields kept for existing report consumers.
+        "checked": 0, "untraced": 0, "unsourced": 0, "without_unit": 0,
+    }
     cited: set[str] = set()
     for block in blocks:
         if block.kind == "heading":
@@ -473,7 +515,18 @@ def check_brief(output_dir: str | Path, *, manifest: dict[str, Any], chart_manif
                 cited.add(data)
         found = block_numbers(block)
         measured = [(line, item) for line, item in found if item.unit]
-        counts["without_unit"] += len(found) - len(measured)
+        ambiguous = [(line, item) for line, item in found if item.unit is None and item.ambiguous_unit]
+        skipped = len(found) - len(measured) - len(ambiguous)
+        counts["numeric_tokens"] += len(found)
+        counts["parsed"] += len(measured)
+        counts["ambiguous"] += len(ambiguous)
+        counts["skipped"] += skipped
+        counts["without_unit"] += len(ambiguous) + skipped
+        for line, item in ambiguous:
+            error(
+                "ambiguous_unit", line,
+                f"{item.text} has an unrecognized adjacent unit {item.ambiguous_unit!r}; spell it as a supported unit",
+            )
         if not measured:
             continue
         shown = ", ".join(item.text for _, item in measured[:6]) + (" ..." if len(measured) > 6 else "")

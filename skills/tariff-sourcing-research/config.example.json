@@ -1,4 +1,3 @@
 {
-  "project_root": "<absolute path to usitc-tariff-pipeline>",
-  "python": ".venv\\Scripts\\python.exe"
+  "project_root": "<absolute path to usitc-tariff-pipeline>"
 }

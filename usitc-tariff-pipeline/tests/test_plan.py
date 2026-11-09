@@ -157,6 +157,21 @@ class RefusingSession:
         raise AssertionError("the gate should stop the run before any network request")
 
 
+class RetrySession:
+    """Return one retryable response, then a success, while recording call order."""
+
+    def __init__(self, events: list[str]) -> None:
+        self.events = events
+        self.calls = 0
+
+    def post(self, *args, **kwargs) -> FakeResponse:
+        self.calls += 1
+        self.events.append("post")
+        response = FakeResponse(FIXTURE)
+        response.status_code = 429 if self.calls == 1 else 200
+        return response
+
+
 class ProjectTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -179,6 +194,23 @@ class ProjectTestCase(unittest.TestCase):
 
     def run_cli(self, *args: str) -> tuple[int, str, str]:
         return run_captured(cli.main, ["--config", str(self.paths["config"]), *args])
+
+
+class DataWebRetryTests(ProjectTestCase):
+    def test_initial_request_is_immediate_and_wait_happens_only_after_failure(self) -> None:
+        self.paths["config"].write_text(RESEARCH_TOML.replace("retry_delays = [0]", "retry_delays = [0, 2]"), encoding="utf-8")
+        config = load_config(self.paths["config"])
+        events: list[str] = []
+        session = RetrySession(events)
+        client = DataWebClient(config, token=TOKEN, session=session)
+
+        with mock.patch("usitc_pipeline.dataweb.random.uniform", return_value=0.0), mock.patch(
+            "usitc_pipeline.dataweb.time.sleep", side_effect=lambda seconds: events.append(f"sleep:{seconds:g}")
+        ):
+            response = client._post_with_retry({"synthetic": True})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(events, ["post", "sleep:2", "post"])
 
 
 class QueryPlanTests(ProjectTestCase):

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "release_id": "2026HTSRev22",
+  "effective_date": "2026-10-30",
+  "structure_file": "hts_rest_search_8542.32.json",
+  "source_url": "https://hts.usitc.gov/reststop/search?keyword=8542.32",
+  "source_sha256": "9132431d05a68869c94cf5d612c79af9502931ce60b84d3edd23fcb260466be5",
+  "retrieved_at_utc": "2026-11-09T03:22:24.400844+00:00"
+}

@@ -142,6 +142,8 @@ class FinalReportEndToEndTests(unittest.TestCase):
         self.assertEqual(page.count("data:image/png;base64,"), 1 + len(rest))
         for label in ("附录", "A. 研究身份", "B. 数据核对", "C. 不能下的结论", "D. 其他图表", "E. 文件与哈希", "正文 brief-check"):
             self.assertIn(label, page)
+        self.assertIn("个单位歧义", page)
+        self.assertIn("个无单位跳过", page)
         manifest = json.loads((out / "analysis_manifest.json").read_text(encoding="utf-8"))
         self.assertIn(manifest["study_sha256"], page)
         record = json.loads((out / "final_report.json").read_text(encoding="utf-8"))
@@ -159,6 +161,8 @@ class FinalReportEndToEndTests(unittest.TestCase):
         build()
         page = (out / "final_report.html").read_text(encoding="utf-8")
         self.assertIn("Appendix", page)
+        self.assertIn("ambiguous units", page)
+        self.assertIn("unitless skips", page)
         self.assertIn("A. Study identity", page)
         self.assertNotIn("附录", page)
 

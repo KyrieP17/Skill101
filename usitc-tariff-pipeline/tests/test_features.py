@@ -6,6 +6,7 @@ its plan, study hash and outputs.  All codes and values are synthetic.
 
 from __future__ import annotations
 
+import csv
 from datetime import date
 import json
 from pathlib import Path
@@ -28,6 +29,7 @@ import test_plan  # noqa: E402
 from usitc_pipeline import charts as chart_module  # noqa: E402
 from usitc_pipeline import plan as plan_module  # noqa: E402
 from usitc_pipeline import report as report_module  # noqa: E402
+from usitc_pipeline import registry as registry_module  # noqa: E402
 from usitc_pipeline import timeline as timeline_module  # noqa: E402
 from usitc_pipeline.dataweb import DataWebClient  # noqa: E402
 from usitc_pipeline.study import StudyError  # noqa: E402
@@ -41,13 +43,55 @@ PRODUCT_ROWS = (
     "2024-09-27,effective,Synthetic duty B,7.5% -> 25%,{code},China,HTS archive,"
     "https://hts.usitc.gov/reststop/file?release=x,draft,\n"
 )
-COUNTRY_ROWS = "2025-02-04,effective,Synthetic country duty,+10%,,China; Hong Kong,FR,https://www.federalregister.gov/d/1,draft,\n"
+COUNTRY_ROWS = (
+    "2025-02-04,effective,Synthetic country duty,+10%,,China; Hong Kong,FR,https://www.federalregister.gov/d/1,draft,\n"
+    "2025-04-05,effective,Synthetic reciprocal duty,+99%,,All origins,FR,https://www.federalregister.gov/d/1,draft,\n"
+)
 
 
 def write_timeline(path: Path, rows: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(HEADER + "\n" + rows, encoding="utf-8")
     return path
+
+
+def write_synthetic_registry(root: Path) -> None:
+    directory = root / "config" / "tariff_registry"
+    directory.mkdir(parents=True, exist_ok=True)
+    sources = [
+        {"source_id": "fr-1", "kind": "federal_register", "citation": "1 FR 1", "title": "Synthetic",
+         "document_number": "1", "publication_date": "2025-01-01", "signing_date": "",
+         "url": "https://www.federalregister.gov/d/1", "sha256": "a" * 64,
+         "retrieved": "2026-11-08", "notes": ""},
+    ]
+    measures = []
+    for measure_id, day, heading, origins in (
+        ("duty-a", "2019-09-01", "9903.88.15", "China"),
+        ("review", "2024-05-14", "9903.91.01", "China"),
+        ("duty-b", "2024-09-27", "9903.91.02", "China"),
+        ("country-duty", "2025-02-04", "9903.01.20", "China; Hong Kong"),
+        ("reciprocal", "2025-04-05", "9903.01.25", "All origins"),
+    ):
+        measures.append(
+            {"measure_id": measure_id, "date": day, "date_type": "effective", "authority": "Synthetic",
+             "headings": heading, "change": "+10%", "origins": origins, "products": "list", "sources": "fr-1",
+             "hts_note": "", "status": "verified", "notes": ""}
+        )
+    coverage = [
+        {"measure_id": row["measure_id"], "hts": "8507.60",
+         "coverage": "exempt" if row["measure_id"] == "reciprocal" else "covered", "evidence": "fr-1 annex",
+         "status": "verified", "notes": ""}
+        for row in measures
+    ]
+    for name, columns, rows in (
+        ("sources.csv", registry_module.SOURCE_COLUMNS, sources),
+        ("measures.csv", registry_module.MEASURE_COLUMNS, measures),
+        ("coverage.csv", registry_module.COVERAGE_COLUMNS, coverage),
+    ):
+        with (directory / name).open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=columns, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
 
 
 class TimelineFileTests(unittest.TestCase):
@@ -223,7 +267,7 @@ class TimelineChartTests(unittest.TestCase):
 
 
 class TimelineReportTests(unittest.TestCase):
-    def test_table_lists_every_row_with_its_check_status(self) -> None:
+    def test_table_lists_every_row_with_its_primary_source(self) -> None:
         rows = timeline_module.annotate(
             [
                 {"date": "2024-09-27", "date_type": "effective", "measure": "Duty B", "rate_change": "25%", "applies_to": "8507600010",
@@ -235,8 +279,9 @@ class TimelineReportTests(unittest.TestCase):
         )
         table = report_module.timeline_table(rows)
         self.assertEqual(len(table), 4)
-        self.assertIn("| 2024-05-14 | 宣布 | Review | — | 整个 scope | 全部 | memory | 用户已核对；待核对（无一手来源） |", table)
-        self.assertIn("| 2024-09-27 | 生效 | Duty B | 25% | 8507600010 | China | HTS | 未经用户核对 |", table)
+        self.assertIn("| 2024-05-14 | 宣布 | Review | — | 整个 scope | 全部 | memory；来源待核实 |", table)
+        self.assertTrue(any("HTS ([原文](https://hts.usitc.gov/x))" in line for line in table))
+        self.assertFalse(any("未经用户核对" in line or "用户已核对" in line for line in table))
 
 
 class TimelineEndToEndTests(unittest.TestCase):
@@ -249,6 +294,7 @@ class TimelineEndToEndTests(unittest.TestCase):
         e2e.LithiumIonOfflineE2ETests.tearDown(self)
 
     def run_study(self, extra: str) -> Path:
+        write_synthetic_registry(self.root)
         self.study.write_text(self.study.read_text(encoding="utf-8") + extra, encoding="utf-8")
         _, plan_path = plan_module.plan_study(self.config, self.study)
         client = DataWebClient(self.config, token=e2e.TOKEN, session=e2e.LithiumFixtureSession(self.fixture))
@@ -267,12 +313,18 @@ class TimelineEndToEndTests(unittest.TestCase):
         )
         table = pd.read_csv(out / "tables" / "tariff_timeline.csv")
         self.assertEqual(len(table), 4)
+        self.assertEqual(set(table["coverage"]), {"applies"})
         manifest = json.loads((out / "analysis_manifest.json").read_text(encoding="utf-8"))
         self.assertIsNotNone(manifest["outputs"]["tariff_timeline"])
+        self.assertEqual(manifest["tariff_timeline_filter"]["excluded"], 1)
+        self.assertEqual(manifest["tariff_timeline_filter"]["excluded_by_coverage"], {"exempt": 1})
+        self.assertEqual(len(manifest["tariff_registry_inputs"]), 3)
+        self.assertEqual(len(manifest["tariff_registry_sha256"]), 64)
+        self.assertNotIn("Synthetic reciprocal duty", table["measure"].tolist())
         findings = json.loads((out / "findings.json").read_text(encoding="utf-8"))
         timeline_claim = next(item for item in findings["findings"] if item["id"] == "timeline")
-        self.assertIn("4 条未经用户核对", timeline_claim["claim"])
-        self.assertIn("2 条没有一手来源", timeline_claim["claim"])
+        self.assertIn("2 条有一手来源", timeline_claim["claim"])
+        self.assertIn("2 条来源仍待核实", timeline_claim["claim"])
         self.assertTrue((out / "charts" / "09_realized_duty.timeline.csv").is_file())
         report = (out / "report.md").read_text(encoding="utf-8")
         self.assertIn("## 4. 关税时间线", report)
