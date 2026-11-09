@@ -1,25 +1,25 @@
 # scopes/
 
-每个产品口径一个目录，每个版本一个子目录。**新研究 = 新 scope + 新 study**（study 在 `config/studies/`）；`laptops` 和 `lithium-ion` 是例子，不是模板。
+One folder per product definition, one subfolder per version. **A new study = a new scope + a new study file** (study files live in `config/studies/`); `laptops`, `lithium-ion` and `smartphones` are examples, not templates.
 
 ```text
 scopes/<scope_id>/v<k>/
-  candidates*.csv, *.raw.json  hts_scope_resolver.py 的候选输出；status 单独列出，不当作口径文件
-  reviewed.csv                 起草、审核中的口径（review_status = candidate 或 reviewed）
-  approval-card*.json          scope-validate 写的审批卡片：没有批准效力，写了就不再改
-  history/, hts-history.json   可选：历年 HTS 连续性证据
-  scope.csv                    scope-approve 写的已批准口径（带 reviewer、approved_at_utc）
-  manifest.json                scope-approve 写的冻结记录：scope_sha256、record_sha256、文件哈希、批准方式、连续性状态
+  candidates*.csv, *.raw.json  candidate output of hts_scope_resolver.py; status lists them separately, not as scope files
+  reviewed.csv                 the scope being drafted and reviewed (review_status = candidate or reviewed)
+  approval-card*.json          approval card written by scope-validate: approves nothing, never changed once written
+  history/, hts-history.json   optional: HTS continuity evidence across editions
+  scope.csv                    the approved scope written by scope-approve (with reviewer, approved_at_utc)
+  manifest.json                frozen record written by scope-approve: scope_sha256, record_sha256, file hashes, approval method, continuity status
 ```
 
-规则：
+Rules:
 
-- 列与 skill 里的 `assets/product_scope_template.csv` 相同；校验规则只在 `src/usitc_pipeline/scope.py` 一处定义。
-- 只有用户本人批准才算：要么自己在交互终端运行 `scope-approve`、输入 `scope_sha256` 前 8 位；要么在对话里看了卡片后回复批准，agent 再带 `--chat-confirmation "<用户原话>" --confirm <前 8 位>` 运行（manifest 记下方式和原话，报告写"已批准（对话确认）"）。agent 不手写 `approved`、reviewer、批准时间或 manifest。批准是研究决定，不是海关归类裁定。
-- 没有历年 HTS 证据也能批准，但只能显式地批：卡片写"连续性未核实"，终端批准时要输入 `UNVERIFIED`，对话批准时卡片和问题里要写明这一条，之后每份报告都会显示。
-- 卡片不可变。证据后来补上了，就另写一张新卡片（如 `approval-card-2.json`）。
-- 批准后不改 `scope.csv`，也不删 `manifest.json` 重来。编码、日期、单位、纳入或排除有任何变化，都另存为 `v<k+1>`。改过的 CSV 会被 `plan` 和 `acquire --plan` 拒绝。
-- 编码变化用多行表示：旧编码写到最后一天，新编码从第一天开始，各自注明审核时的 HTS 版本。
-- 用这个口径取到的快照放在 `data/raw/dataweb/scopes/<scope_id>/v<k>/`，元数据里记录 `scope_sha256`。
+- The columns are those of the skill's `assets/product_scope_template.csv`; the validation rules are defined in one place, `src/usitc_pipeline/scope.py`.
+- Only the user's own approval counts: either they run `scope-approve` in an interactive terminal and type the first 8 characters of `scope_sha256`, or they read the card in chat and reply with approval, after which the agent runs the command with `--chat-confirmation "<the user's exact words>" --confirm <first 8>` (the manifest records the method and the words; the report says "已批准（对话确认）", approved in chat). The agent never writes `approved`, a reviewer, an approval time or a manifest by hand. Approval is a research decision, not a customs classification ruling.
+- A scope can be approved without HTS continuity evidence, but only explicitly: the card says "连续性未核实" (continuity not verified), terminal approval requires typing `UNVERIFIED`, chat approval must state it on the card and in the question, and every report shows it afterwards.
+- Cards are immutable. If evidence arrives later, write a new card (e.g. `approval-card-2.json`).
+- After approval, never edit `scope.csv` or delete `manifest.json` to start over. Any change to codes, dates, units or inclusion goes into `v<k+1>`. `plan` and `acquire --plan` refuse an edited CSV.
+- A code change takes several rows: the old code ends on its last day, the new one starts on its first, each with the HTS edition it was reviewed against.
+- Snapshots downloaded with a scope go to `data/raw/dataweb/scopes/<scope_id>/v<k>/`, with `scope_sha256` in their metadata.
 
-哪些版本已批准，用 `python run.py status` 看。`laptops/v1/scope.csv` 是早期的候选稿，不再使用；laptop 研究用 `laptops/v2`。
+Which versions are approved: `python run.py status`. `laptops/v1/scope.csv` is an early candidate draft that is no longer used; the laptop study uses `laptops/v2`.
