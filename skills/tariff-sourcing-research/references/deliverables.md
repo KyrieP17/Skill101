@@ -30,6 +30,8 @@ Every number comes from a validated table (D-024). A number no table holds (a qu
 - no hedged cause ("可能是", "probably") anywhere, and causal verbs ("因为", "导致", "due to" ...) only inside a question ending in ？ or ?;
 - with `[brief] candidates`, every item of `tables/mention_list.csv` is named.
 
+Proxy disclosure is local, not deferred: at the first prose use and on the first chart for a proxy, state its selected DataWeb field or readable formula, reported quantity unit, and interpretation boundary. Put the chart's actual filtering or masking rule beside the chart and distinguish an observed zero from unavailable/suppressed data and a chart-filtered point. The full definition still appears in section 6 from `tables/proxy_notes.csv`; that section must not be the reader's first chance to learn what the proxy means.
+
 Sections, in this order:
 
 1. **Key findings, then key numbers**: one sentence answering the study question, then 4–6 numbered findings: what you found while working through the tables, not a list of numbers. Each is one bold sentence stating a conclusion, then the 2–4 numbers that prove it, with label and source. Look for:
@@ -44,7 +46,7 @@ Sections, in this order:
 3. **Body**: the scope total at the scope's level (HTS6 for a first study), with segments side by side when the study has `[[segments]]` (`tables/segment_series.csv`). Charts `03` (focal share path with timeline lines) and `09` (realized duty with timeline lines), each with a one-line takeaway; add `05`/`06` only if space allows. Show `tables/product_hierarchy_matrix.csv` as `HTS6 industry scope → HTS8 legal rate line → HTS10 statistical category`; use chart `12_product_mix` only when same-period HTS10 World values and the independent HTS6 World denominator make every shown share measurable. Immediately before or after chart 12, include a codebook with `HTS10 | readable category (English) | official English HTS description | family/capacity or specification | import-value share`. Both category columns stay English even in a Chinese report: the compact label comes from `hts10_display_label_en`, while the official description comes from `hts10_description`. Call these HTS statistical categories, not market segments. An unavailable share stays blank and becomes a next step. When the study has `[decomposition]`, put under chart 03 a table of its turns from `tables/share_decomposition.csv` (the `custom` windows, then the last full year and the YTD): the focal origin's share change, the part from its own value and the part from all other origins, its value change split into quantity and unit value, and the timeline rows dated in the window. Write it as arithmetic ("份额 −44.8 个百分点：−44.4 来自 China 自身金额，−0.4 来自其他来源地"); a timeline row is a date inside the window, never the cause.
 4. **Questions worth asking**: what the findings leave open and this data cannot answer, each with its table and, when known, what other data would answer it (a product split HTS cannot make, a rate row to verify). For example: an origin that is new or grew from almost nothing; realized duty below the base rate (or far below base rate plus additional duties in the timeline); a unit value far from the other origins; count and weight moving in opposite directions (`quantity_conflict` findings); an import surge in the months before a timeline date. With `[anomalies] enabled`, start from `tables/anomaly_flags.csv`: each row has the rule, the numbers, the threshold it crossed and a question template; use the flags that matter, cite the table, and leave out the rest. A flag is an observation, not a finding and not a cause. Do not repeat a finding as a question; write it as a question, never "可能是……".
 5. **Drill-down and next-step menu**: from `tables/drilldown_menu.csv` when the study has one: for each finer level, its lines, the HTS8 base rate, whether a verified Chapter 99 layer covers only some lines, splits in the study period, and the verdict. Then show up to three deterministic rows from `tables/next_steps.csv`; state whether each needs official-source review, user entry details, a new DataWeb download or optional network research. The menu never performs those actions. `industry_context.mode = "light"` only records that the user opted into the separately sourced context step.
-6. **Notes on measures**: use `tables/proxy_notes.csv` as the source of each proxy's fields, formula, denominator, unit, meaning, non-meaning, period, HTS release and quality warning; include the footnotes below that apply.
+6. **Notes on measures**: use `tables/proxy_notes.csv` as the source of each proxy's fields, formula, denominator, unit, meaning, non-meaning, period, HTS release and quality warning; include the footnotes below that apply. Preserve the user-facing HTS unit spelling (`No.`, `kg`, and so on), even when internal comparison normalizes case.
 
 No HTS4 map section (decisions.md D-025): the brief stays at the scope's own level.
 
@@ -59,7 +61,7 @@ Lead with charts, not a tour of the database. Use only what the request needs:
 3. Where the change went: every origin's inflow and outflow, annual and same-period YTD (`05`, `06`).
 4. Which codes inside the scope moved (`02`).
 5. Timing around policy dates (`03`).
-6. Unit value where quantity is comparable, and realized duty (`08`, `09`).
+6. Product-mix-sensitive unit-value proxy where reported quantity is comparable, and realized duty (`08`, `09`). Chart 08 names the formula and reported unit and explains every masked gap; never shorten the proxy to price or ASP.
 7. HTS8/HTS10 product structure, tariff-treatment status, proxy notes, alternatives checked and the data check (`10`, `12` when measured).
 
 ## Writing style
@@ -78,6 +80,7 @@ Include only those relevant to the page:
 - USITC DataWeb, U.S. imports for consumption, `data_through`, and that Census revises the last three years each June;
 - quantity unit and YTD window;
 - unit value is `CONS_CUSTOMS_VALUE / CONS_FIR_UNIT_QUANT` (or the explicitly selected second quantity): customs value per reported unit, not a transaction price, company ASP, market price or per-capacity price; it includes technology, capacity, package and specification mix, and quantity may be suppressed without a flag;
+- any chart filter or materiality threshold, with the explicit statement that a filtered gap is not an observed zero and is not automatically missing source data;
 - realized duty is `CONS_CALC_DUTY / CONS_CUSTOMS_VALUE`: observed calculated duty incidence, not the HTS-based tariff treatment and not proof that every entry used one provision or program;
 - country is the origin reported to U.S. Customs, not shipping country, value added, fab location, corporate supplier dependence or a transshipment-adjusted exposure;
 - HTS10 share, when present, is same-period HTS10 World customs value divided by the independently queried parent HTS6 World customs value: U.S. import-value composition, not market share, company share or global capacity;
@@ -90,6 +93,8 @@ Include only those relevant to the page:
 ## QA
 
 - Every plotted value is in the same-stem chart CSV or a named table.
+- Every proxy chart names the proxy and readable unit in its title or axis, places the formula/denominator and interpretation boundary next to the chart, and records any filtered point and reason in the same-stem chart CSV.
+- A blank is identified as observed zero, source-data unavailable/suppressed, or chart-filtered; these states are never silently substituted for one another.
 - `brief-check` passes; `final_report.json` keeps its summary.
 - Every proxy used in prose has a row in `tables/proxy_notes.csv`; every tariff-snapshot row states its status and input assumptions; no unavailable HTS10 share is shown as zero or normalized to 100%; every HTS10 code in chart 12 has its compact English category and official English description in the codebook.
 - Titles and bullets agree with the latest validated output.

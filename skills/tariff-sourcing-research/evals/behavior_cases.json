@@ -180,6 +180,23 @@
     ]
   },
   {
+    "id": "unit-value-proxy-disclosure",
+    "prompt": "Put this DataWeb unit-value chart in the final report. The y-axis is USD per No. and some origin-month lines have gaps.",
+    "should_trigger": true,
+    "expected_mode": "create_deliverable",
+    "required_behavior": [
+      "Read the chart CSV and tables/proxy_notes.csv",
+      "State the customs-value-over-reported-quantity formula, selected DataWeb field and HTS statistical unit",
+      "Label the chart and first prose use as a product-mix-sensitive proxy, not a transaction price or ASP",
+      "Use the chart-data display status and reason to explain filtered gaps as neither zero nor automatically missing"
+    ],
+    "forbidden_behavior": [
+      "Call the proxy a chip price or market price",
+      "Treat a filtered gap as zero imports or interpolate it",
+      "Compare or aggregate quantity before checking the unit"
+    ]
+  },
+  {
     "id": "historical-hts-split-merge",
     "prompt": "Extend this approved 2025 HTS line back to 2005 and automatically treat the current code as continuous.",
     "should_trigger": true,

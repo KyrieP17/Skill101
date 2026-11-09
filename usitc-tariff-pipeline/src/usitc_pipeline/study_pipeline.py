@@ -111,7 +111,7 @@ INTERPRETATION_BOUNDARIES = [
     "Policy-aligned timing is descriptive unless a causal design is added.",
     "Realized duty (calculated duty / customs value) is not the statutory tariff rate.",
     "The HTS tariff-treatment snapshot is non-binding research, not a CBP classification ruling or entry liquidation.",
-    "Unit value (customs value / reported quantity) is a product-mix proxy, not a transaction price, company ASP or per-capacity price.",
+    "The unit-value proxy (customs value / reported quantity) is product-mix-sensitive, not a transaction price, company ASP, market price or per-capacity price.",
     "HTS10 product share is a share of U.S. import customs value inside the parent HTS6, not market share or global capacity.",
 ]
 
@@ -1337,6 +1337,9 @@ def _render_charts(config: ResearchConfig, context: StudyContext) -> list[str]:
         highlight_origins=context.study.highlight_origins,
         quantity_unit=(
             context.scope.second_unit if context.study.quantity_basis == "second" else context.scope.quantity_unit
+        ),
+        quantity_field=(
+            "CONS_SEC_UNIT_QUANT" if context.study.quantity_basis == "second" else "CONS_FIR_UNIT_QUANT"
         ),
         source=_source_line(manifest),
     )

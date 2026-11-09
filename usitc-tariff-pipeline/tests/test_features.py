@@ -203,6 +203,73 @@ def _display(frequency: str, periods: list[str]) -> tuple[pd.DataFrame, pd.DataF
     return display, scope
 
 
+class UnitValueChartDisclosureTests(unittest.TestCase):
+    def test_chart_explains_proxy_unit_and_filtered_gaps(self) -> None:
+        display = pd.DataFrame(
+            [
+                {"frequency": "monthly", "period": "2026-01", "display_origin": "China",
+                 "value_share": 0.005, "unit_value_usd": 10.0},
+                {"frequency": "monthly", "period": "2026-02", "display_origin": "China",
+                 "value_share": 0.020, "unit_value_usd": 20.0},
+                {"frequency": "monthly", "period": "2026-03", "display_origin": "China",
+                 "value_share": float("nan"), "unit_value_usd": 30.0},
+            ]
+        )
+        scope = pd.DataFrame(
+            {"frequency": ["monthly", "monthly", "monthly"], "period": ["2026-01", "2026-02", "2026-03"],
+             "world_unit_value_usd": [5.0, 6.0, float("nan")]}
+        )
+        labels = chart_module.ChartLabels(
+            product="Memory integrated circuits",
+            title="Synthetic",
+            focal_origin="China",
+            quantity_unit="no.",
+            quantity_field="CONS_FIR_UNIT_QUANT",
+            source="Source: synthetic.",
+        )
+        captured = {}
+        real_finish = chart_module._finish
+
+        def finish(fig, png, source, *, footer=(), use_tight_layout=True):
+            axis = fig.axes[0]
+            captured.update(
+                title=axis.get_title(loc="left"),
+                ylabel=axis.get_ylabel(),
+                subtitle=" ".join(text.get_text() for text in axis.texts),
+                source=source,
+                footer=list(footer),
+            )
+            return real_finish(fig, png, source, footer=footer, use_tight_layout=use_tight_layout)
+
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(
+            chart_module, "_finish", side_effect=finish
+        ):
+            chart_module.plot_unit_value(display, scope, Path(directory), labels)
+            plotted = pd.read_csv(Path(directory) / "08_unit_value.csv")
+
+        china = plotted[plotted["display_origin"].eq("China")].reset_index(drop=True)
+        self.assertTrue(pd.isna(china.loc[0, "unit_value_usd"]))
+        self.assertEqual(china.loc[0, "display_status"], "filtered")
+        self.assertEqual(china.loc[0, "display_reason"], "origin_value_share_below_1pct")
+        self.assertEqual(china.loc[1, "unit_value_usd"], 20.0)
+        self.assertEqual(china.loc[1, "display_status"], "shown")
+        self.assertTrue(pd.isna(china.loc[2, "unit_value_usd"]))
+        self.assertEqual(china.loc[2, "display_reason"], "origin_value_share_not_available")
+        world = plotted[plotted["display_origin"].eq("World")].reset_index(drop=True)
+        self.assertEqual(world.loc[2, "display_status"], "not_available")
+        self.assertEqual(world.loc[2, "display_reason"], "reported_quantity_or_world_unit_value_not_available")
+        self.assertIn("unit-value proxy", captured["title"])
+        self.assertEqual(captured["ylabel"], "USD per reported unit (No.)")
+        subtitle = " ".join(captured["subtitle"].split())
+        self.assertIn("CONS_FIR_UNIT_QUANT", subtitle)
+        self.assertIn("unavailable", subtitle)
+        self.assertIn("below 1%", subtitle)
+        self.assertIn("does not establish zero imports", subtitle)
+        self.assertIn("display_status/display_reason", subtitle)
+        self.assertEqual(captured["source"], "Source: synthetic.")
+        self.assertIn("not a transaction price", captured["footer"][0])
+
+
 class TimelineChartTests(unittest.TestCase):
     TIMELINE = pd.DataFrame(
         [

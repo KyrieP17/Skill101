@@ -9,14 +9,14 @@ PROJECT_ROOT = TESTS_DIR.parent
 if str(PROJECT_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from usitc_pipeline.proxy_notes import PROXY_NOTE_COLUMNS, build_proxy_notes
+from usitc_pipeline.proxy_notes import PROXY_NOTE_COLUMNS, build_proxy_notes, display_quantity_unit
 
 
 class ProxyNotesTests(unittest.TestCase):
     def test_first_quantity_unit_and_limits_are_explicit(self) -> None:
         table = build_proxy_notes(
             quantity_basis="first",
-            quantity_unit="No.",
+            quantity_unit="no.",
             second_quantity_unit=None,
             data_through={"annual": "2025", "monthly": "2026-09"},
             hts_releases=["2026HTSRev22"],
@@ -27,8 +27,10 @@ class ProxyNotesTests(unittest.TestCase):
         unit = table.loc["unit_value"]
         self.assertEqual(unit["formula"], "CONS_CUSTOMS_VALUE / CONS_FIR_UNIT_QUANT")
         self.assertEqual(unit["unit"], "USD per No.")
+        self.assertIn("HTS statistical unit No.", unit["denominator"])
         self.assertIn("company ASP", unit["does_not_represent"])
         self.assertIn("quantity", unit["quality_warning"])
+        self.assertIn("not a count of customs declarations", unit["quality_warning"])
         self.assertIn("not verified", unit["quality_warning"])
 
         duty = table.loc["realized_duty"]
@@ -85,6 +87,12 @@ class ProxyNotesTests(unittest.TestCase):
         ).set_index("item_id")
         self.assertEqual(table.loc["unit_value", "formula"], "CONS_CUSTOMS_VALUE / CONS_FIR_UNIT_QUANT")
         self.assertEqual(table.loc["unit_value_2", "formula"], "CONS_CUSTOMS_VALUE / CONS_SEC_UNIT_QUANT")
+
+    def test_quantity_unit_display_preserves_schedule_conventions(self) -> None:
+        self.assertEqual(display_quantity_unit("no."), "No.")
+        self.assertEqual(display_quantity_unit("No."), "No.")
+        self.assertEqual(display_quantity_unit("kg"), "kg")
+        self.assertEqual(display_quantity_unit(None), "")
 
 
 if __name__ == "__main__":

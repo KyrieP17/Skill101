@@ -23,6 +23,8 @@ import numpy as np
 import pandas as pd
 
 from . import product_hierarchy as product_hierarchy_module
+from .flags import MATERIAL_SHARE_PCT
+from .proxy_notes import display_quantity_unit
 from .study import MAX_HIGHLIGHTS
 
 
@@ -49,6 +51,7 @@ class ChartLabels:
     highlight_origins: tuple[str, ...] = ()
     quantity_unit: str | None = None
     source: str = "Source: USITC DataWeb, U.S. imports for consumption."
+    quantity_field: str | None = None
 
     def color(self, origin: str) -> str:
         palette = dict(zip((self.focal_origin, *self.highlight_origins), SLOTS))
@@ -278,8 +281,13 @@ def plot_scope_trend(scope_series: pd.DataFrame, output_dir: str | Path, labels:
     if quantity:
         qfactor, qunit = _count_scale(data["world_quantity"])
         axes[1][0].plot(x, data["world_quantity"] / qfactor, color=SLOTS[0], linewidth=1.8)
-        axes[1][0].set_ylabel(f"Quantity ({' '.join(filter(None, [qunit, labels.quantity_unit or 'units']))})")
-    note = "" if quantity else " Quantity is not shown: quantity units are not comparable across the scope."
+        unit = display_quantity_unit(labels.quantity_unit) or "unit"
+        axes[1][0].set_ylabel(f"Reported quantity ({' '.join(filter(None, [qunit, unit]))})")
+    note = (
+        f" Reported quantity uses the DataWeb HTS statistical unit {display_quantity_unit(labels.quantity_unit)}."
+        if quantity
+        else " Quantity is not shown: quantity units are not comparable across the scope."
+    )
     return _finish(fig, png, labels.source + note)
 
 
@@ -425,12 +433,17 @@ def _origin_lines(
     scale: float = 1.0,
     world: pd.DataFrame | None = None,
     height: float = 5.2,
+    subtitle: str | None = None,
+    audit_columns: Iterable[str] = (),
 ):
     """Shared body of the per-origin line charts; returns (png, figure) for _finish."""
 
-    plotted = data[["frequency", "period", "display_origin", column]].copy()
+    base_columns = ["frequency", "period", "display_origin", column]
+    extra_columns = [name for name in audit_columns if name in data.columns and name not in base_columns]
+    plotted = data[base_columns + extra_columns].copy()
     if world is not None:
-        plotted = pd.concat([plotted, world[["frequency", "period", "display_origin", column]]], ignore_index=True)
+        world_columns = base_columns + [name for name in extra_columns if name in world.columns]
+        plotted = pd.concat([plotted, world[world_columns]], ignore_index=True)
     png, _ = _prepare_output(output_dir, stem, plotted)
     plt = _plt()
     fig, ax = plt.subplots(figsize=(10.5, height))
@@ -441,7 +454,10 @@ def _origin_lines(
             continue  # NaN months stay in the series, so masked months show as gaps
         ax.plot(_x_values(group), group[column] * scale, label=origin, color=labels.color(origin),
                 linewidth=2.4 if origin in {labels.focal_origin, "World"} else 1.4)
-    ax.set_title(title, loc="left")
+    ax.set_title(title, loc="left", **({"pad": 28} if subtitle else {}))
+    if subtitle:
+        ax.text(0, 1.015, textwrap.fill(subtitle, width=125), transform=ax.transAxes,
+                ha="left", va="bottom", fontsize=8.5, color=INK_SECONDARY)
     ax.set_ylabel(ylabel)
     ax.legend(ncol=4, loc="upper left")
     return png, fig
@@ -532,14 +548,61 @@ def plot_unit_value(display: pd.DataFrame, scope_series: pd.DataFrame, output_di
     """
 
     data = _pick_frequency(display, min_annual=12)
-    data = data.assign(unit_value_usd=data["unit_value_usd"].where(data["value_share"] >= 0.01))
+    threshold = MATERIAL_SHARE_PCT / 100
+    unit_unavailable = data["unit_value_usd"].isna()
+    share_unavailable = data["value_share"].isna()
+    below_threshold = data["value_share"].notna() & data["value_share"].lt(threshold)
+    data = data.assign(
+        display_status=np.select(
+            [unit_unavailable, share_unavailable, below_threshold],
+            ["not_available", "not_available", "filtered"],
+            default="shown",
+        ),
+        display_reason=np.select(
+            [unit_unavailable, share_unavailable, below_threshold],
+            [
+                "reported_quantity_or_unit_value_not_available",
+                "origin_value_share_not_available",
+                f"origin_value_share_below_{MATERIAL_SHARE_PCT:g}pct",
+            ],
+            default="",
+        ),
+        unit_value_usd=data["unit_value_usd"].where(~(share_unavailable | below_threshold)),
+    )
     world = scope_series[scope_series["frequency"].eq(data["frequency"].iloc[0])]
-    world = world.assign(display_origin="World", unit_value_usd=world["world_unit_value_usd"])
-    unit = labels.quantity_unit or "unit"
+    world_unavailable = world["world_unit_value_usd"].isna()
+    world = world.assign(
+        display_origin="World",
+        unit_value_usd=world["world_unit_value_usd"],
+        value_share=1.0,
+        display_status=np.where(world_unavailable, "not_available", "shown"),
+        display_reason=np.where(
+            world_unavailable,
+            "reported_quantity_or_world_unit_value_not_available",
+            "all_origin_world_series",
+        ),
+    )
+    unit = display_quantity_unit(labels.quantity_unit) or "unit"
+    quantity_field = labels.quantity_field or "reported quantity"
+    subtitle = (
+        f"Proxy = customs value / reported quantity ({quantity_field}). "
+        f"Gaps: reported quantity/unit value or value share is unavailable, or origin share below "
+        f"{MATERIAL_SHARE_PCT:g}% is filtered. A gap alone does not establish zero imports; "
+        "see display_status/display_reason in the chart CSV."
+    )
     png, fig = _origin_lines(data, "unit_value_usd", stem="08_unit_value", output_dir=output_dir, labels=labels,
-                             title=f"{labels.product}: customs value per {unit}", ylabel=f"US$ per {unit}", world=world)
-    return _finish(fig, png, labels.source + " Unit value mixes price and product mix within the scope; "
-                   "origin-months under 1% of import value are not drawn.")
+                             title=f"{labels.product}: unit-value proxy by origin",
+                             ylabel=f"USD per reported unit ({unit})", world=world, subtitle=subtitle,
+                             audit_columns=("value_share", "display_status", "display_reason"))
+    return _finish(
+        fig,
+        png,
+        labels.source,
+        footer=(
+            "Product-mix-sensitive proxy: not a transaction price, company ASP, market price, "
+            "or capacity-adjusted price.",
+        ),
+    )
 
 
 def plot_realized_duty(

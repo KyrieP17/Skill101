@@ -91,6 +91,28 @@ class MarkdownTests(unittest.TestCase):
         with self.assertRaises(FinalReportError):
             report_language("# x", "fr")
 
+    def test_appendix_names_the_reported_quantity_basis_and_preserves_no_case(self) -> None:
+        manifest = {
+            "product_name": "Memory integrated circuits", "hts_level": 6, "included_codes": ["854232"],
+            "scope_id": "memory", "scope_version": 1, "study_id": "memory-study",
+            "scope_sha256": "a" * 64, "study_sha256": "b" * 64, "plan_sha256": "c" * 64,
+            "quantity_unit": "no.", "second_unit": None, "quantity_basis": "first", "gate": {},
+            "data_through": {}, "query_through": {}, "outputs": {}, "interpretation_boundaries": [],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            english = final_module.appendix_html(
+                manifest=manifest, validation={}, findings={}, other_charts=[], output_dir=Path(directory),
+                brief_sha256="d" * 64, language="en",
+            )
+            chinese = final_module.appendix_html(
+                manifest=manifest, validation={}, findings={}, other_charts=[], output_dir=Path(directory),
+                brief_sha256="d" * 64, language="zh",
+            )
+        self.assertIn("Reported quantity basis", english)
+        self.assertIn("DataWeb first statistical unit No.", english)
+        self.assertIn("申报数量口径", chinese)
+        self.assertIn("DataWeb 第一统计计量单位 No.", chinese)
+
 
 class CommandTests(unittest.TestCase):
     def test_report_pdf_command(self) -> None:

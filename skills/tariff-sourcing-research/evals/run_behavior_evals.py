@@ -78,7 +78,7 @@ def validate_cases(
     cases: list[dict[str, Any]],
     *,
     min_total: int = 10,
-    max_total: int = 20,
+    max_total: int = 25,
     min_trigger: int = 5,
     min_nontrigger: int = 5,
 ) -> dict[str, int]:

@@ -18,9 +18,11 @@ from typing import Any
 
 import pandas as pd
 
+from .proxy_notes import display_quantity_unit
+
 
 SECTIONS = (
-    ("scale", "总量：进口额、数量、单位价值", ("01_scope_trend", "08_unit_value")),
+    ("scale", "总量：进口额、申报数量、单位价值代理", ("01_scope_trend", "08_unit_value")),
     ("sources", "来源地份额与流入流出", ("04_origin_shares", "05_origin_change", "02_product_reallocation")),
     ("ytd", "同期 YTD 对比", ("06_ytd_comparison",)),
     ("events", "事件窗口", ("03_event_path",)),
@@ -134,12 +136,13 @@ def _comparison_findings(changes: pd.DataFrame, focal: str, quantity_unit: str |
                 )
             )
             if bool(world["quantity_comparable"]) and pd.notna(world["unit_value_change_pct"]):
+                reported_unit = display_quantity_unit(quantity_unit) or "unit"
                 findings.append(
                     _finding(
                         "unit_value", "scale", "Derived",
-                        f"平均单位价值（海关价值 / 数量，单位 {quantity_unit}）从 {world['base_unit_value_usd']:,.0f} 美元"
+                        f"单位价值代理（海关价值 / 申报数量；DataWeb 统计单位 {reported_unit}）从 {world['base_unit_value_usd']:,.0f} 美元"
                         f"变为 {world['compare_unit_value_usd']:,.0f} 美元（{pct(world['unit_value_change_pct'], signed=True)}）；"
-                        "单位价值同时反映价格和 scope 内产品组合的变化。",
+                        "该指标包含 scope 内产品结构，不是同类产品成交价格、公司 ASP 或按容量调整的价格。",
                         "tables/origin_change.csv",
                         base=world["base_unit_value_usd"], compare=world["compare_unit_value_usd"],
                     )
@@ -610,13 +613,13 @@ def proxy_notes_table(rows: list[dict[str, Any]]) -> list[str]:
         return str(value or "").replace("|", "/").replace("\n", " ") or "—"
 
     table = [
-        "| 指标/代理 | 证据 | 来源字段 | 公式 | 单位 | 代表什么 | 不代表什么 | 质量提示 |",
-        "|---|---|---|---|---|---|---|---|",
+        "| 指标/代理 | 证据 | 来源字段 | 公式 | 分母 | 单位 | 代表什么 | 不代表什么 | 质量提示 |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for row in rows:
         table.append(
             f"| {cell(row['item_id'])} | {cell(row['evidence_label'])} | {cell(row['source_fields'])} | "
-            f"{cell(row['formula'])} | {cell(row['unit'])} | {cell(row['represents'])} | "
+            f"{cell(row['formula'])} | {cell(row['denominator'])} | {cell(row['unit'])} | {cell(row['represents'])} | "
             f"{cell(row['does_not_represent'])} | {cell(row['quality_warning'])} |"
         )
     return table

@@ -320,3 +320,10 @@ D-016 记的已知小问题（没有事件线时 03 图脚注仍讲事件线）�
 - `review_status` 继续作为内部研究字段，不再进入用户可见的时间线表或必提项。没有一手来源的事实仍标“来源待核实”并按 fail-closed 处理。
 - 用户可见的关税表列出税率变化、适用编码/来源地，以及 HTSUS Chapter 99、Executive Order、Federal Register 或 USTR/CBP 法源编号和原文链接；内部 `measure_id` 不展示。
 - 对 synthetic-opioid policy 的正文只需简述：以芬太尼/合成阿片供应链为政策理由，但形成了对中国原产广泛商品适用的来源地附加税；不再重复“研究商品不是芬太尼”的防误读句。
+
+### D-035 — 单位价值代理在首次出现和图表中直接解释
+
+- 单位价值统一称为 **product-mix-sensitive unit-value proxy / 含产品结构的单位价值代理**，公式是 `customs value / reported quantity`；不得简称为产品价格、成交价格、公司 ASP、市场价格或容量调整价格。
+- 图表标题和纵轴直接标明 proxy 与 DataWeb/HTS 申报数量单位；`No.` 表示该 HTS 统计分类下申报商品件数，不是报关单数量，也没有统一容量、重量、封装或产品规格。
+- 图表同名 CSV 增加 `value_share`、`display_status` 和 `display_reason`。低于图表实际份额阈值而隐藏的点必须标明原因；图上断点既不代表零，也不能自动当成源数据缺失。
+- 正文第一次使用 proxy 时给出短定义，完整来源字段、分母、单位和边界继续写入 `tables/proxy_notes.csv`。这些调整不改变 DataWeb 查询或计算公式；重新分析可复用现有缓存，无需重新取数。

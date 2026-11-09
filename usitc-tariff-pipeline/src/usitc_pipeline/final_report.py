@@ -27,6 +27,8 @@ import subprocess
 import tempfile
 from typing import Any, Callable
 
+from .proxy_notes import display_quantity_unit
+
 BRIEF = "brief.md"
 OUTPUTS = ("final_report.html", "final_report.pdf", "final_report.json")
 BROWSER_ENV = "USITC_PDF_BROWSER"
@@ -69,8 +71,8 @@ LABELS = {
         "continuity": "HTS 连续性",
         "verified": "已核实",
         "unverified": "未核实",
-        "quantity": "数量口径",
-        "quantity_value": "第一计量单位 {first}；第二计量单位 {second}（basis = {basis}）",
+        "quantity": "申报数量口径",
+        "quantity_value": "DataWeb 第一统计计量单位 {first}；第二统计计量单位 {second}（选用 basis = {basis}）",
         "generated": "分析生成时间（UTC）",
         "validation": "panel 验证",
         "passed": "通过",
@@ -114,8 +116,8 @@ LABELS = {
         "continuity": "HTS continuity",
         "verified": "verified",
         "unverified": "not verified",
-        "quantity": "Quantity",
-        "quantity_value": "first unit {first}; second unit {second} (basis = {basis})",
+        "quantity": "Reported quantity basis",
+        "quantity_value": "DataWeb first statistical unit {first}; second statistical unit {second} (selected basis = {basis})",
         "generated": "Analysis generated (UTC)",
         "validation": "Panel validation",
         "passed": "passed",
@@ -415,8 +417,8 @@ def appendix_html(
     ]
     if manifest.get("quantity_unit"):
         identity.append((words["quantity"], html.escape(words["quantity_value"].format(
-            first=manifest.get("quantity_unit"),
-            second=manifest.get("second_unit") or "—",
+            first=display_quantity_unit(manifest.get("quantity_unit")),
+            second=display_quantity_unit(manifest.get("second_unit")) or "—",
             basis=manifest.get("quantity_basis") or "first",
         ))))
     identity.append((words["generated"], html.escape(str(manifest.get("generated_at_utc", "—")))))

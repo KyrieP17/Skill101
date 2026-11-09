@@ -19,6 +19,7 @@ When one fails, stop the claims it touches and keep the narrower valid work.
 | Gate | Stops |
 |---|---|
 | Quantity units differ, are missing or mixed in a product-period | quantity, quantity share and unit value there; value results continue |
+| A chart filters or masks a point | any claim that the gap is zero or missing; use the chart-data status and reason |
 | YTD compared with anything other than the same months of the prior year | the YTD claim |
 | Origins do not sum to the independent World query, or a period is missing (missing is never zero) | that product-period |
 | Long window without HTS continuity evidence | the claim of one continuous product, unless the report says 连续性未核实 |
@@ -33,6 +34,8 @@ When one fails, stop the claims it touches and keep the narrower valid work.
 - **Unknown**: cannot be answered from these data (unmapped HTS10 treatment, value-added path, quantity that is not comparable).
 
 An inference never becomes a fact by repetition, a chart or a confident sentence.
+
+Call `customs value / reported quantity` a **product-mix-sensitive unit-value proxy** (or customs value per reported unit), not price or ASP. Its first use states the selected DataWeb quantity field, HTS statistical unit and non-price boundary from `tables/proxy_notes.csv`. Keep three states separate: an observed zero, unavailable or suppressed source data, and a value intentionally filtered from a chart.
 
 ## Alternatives to check
 
@@ -57,6 +60,7 @@ The key for a policy claim is `origin x HTS8/HTS10 x effective date x status`. K
 - Use complete months on both sides of an effective date, or state a partial-month rule.
 - Treat pandemic and other shock dates as context unless the design identifies their effect.
 - Check missing months and HTS validity windows before reading slopes or breaks.
+- Read a line break from the same-stem chart CSV: a filtered point is neither zero nor automatically missing, and must carry its display reason.
 - A sharp visual break is a candidate episode, not a structural break.
 
 ## Concentration

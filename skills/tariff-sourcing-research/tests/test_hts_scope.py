@@ -347,7 +347,7 @@ class BehaviorEvalContractTests(unittest.TestCase):
     def test_behavior_cases_have_unique_ids_and_routing_labels(self):
         cases = behavior_runner.load_cases(SKILL_ROOT / "evals" / "behavior_cases.json")
         summary = behavior_runner.validate_cases(cases)
-        self.assertEqual(summary, {"total": 20, "trigger": 13, "nontrigger": 7})
+        self.assertEqual(summary, {"total": 21, "trigger": 14, "nontrigger": 7})
         paraphrases = [case for case in cases if "variant_of" in case]
         self.assertGreaterEqual(sum(case["should_trigger"] for case in paraphrases), 2)
         self.assertGreaterEqual(sum(not case["should_trigger"] for case in paraphrases), 2)
@@ -427,13 +427,13 @@ class TriggerEvalTests(unittest.TestCase):
 
         eager = behavior_runner.run_trigger_eval(self.cases, self.executor(lambda case: skill))
         self.assertFalse(eager["ok"])
-        self.assertEqual(eager["correct"], 13)
+        self.assertEqual(eager["correct"], 14)
         self.assertEqual(eager["false_triggers"], [case["id"] for case in self.cases if not case["should_trigger"]])
 
     def test_unreadable_answers_count_as_wrong(self):
         choices = {case["id"]: None for case in self.cases}
         report = behavior_runner.score_triggers(self.cases, choices, "tariff-sourcing-research")
-        self.assertEqual((report["correct"], len(report["unreadable"])), (0, 20))
+        self.assertEqual((report["correct"], len(report["unreadable"])), (0, 21))
         self.assertEqual(behavior_runner.parse_choice('noise {"skill": "none"} tail'), "none")
 
     def test_trigger_needs_an_executor(self):

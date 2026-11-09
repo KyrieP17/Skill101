@@ -296,6 +296,45 @@ class SecondUnitReportTests(unittest.TestCase):
             event_metrics={}, skips={},
         )
 
+    def test_unit_value_finding_names_the_proxy_reported_unit_and_limits(self) -> None:
+        common = {
+            "comparison": "annual_2024_vs_2025", "base_periods": "2024", "compare_periods": "2025",
+            "quantity_comparable": True, "base_realized_duty_pct": 0.0, "compare_realized_duty_pct": 0.0,
+        }
+        changes = pd.DataFrame(
+            [
+                {**common, "origin_name": "World", "base_value_usd": 100.0, "compare_value_usd": 120.0,
+                 "value_change_usd": 20.0, "value_growth_pct": 20.0, "quantity_growth_pct": 10.0,
+                 "base_share_pct": 100.0, "compare_share_pct": 100.0, "share_change_pp": 0.0,
+                 "base_unit_value_usd": 2.0, "compare_unit_value_usd": 3.0, "unit_value_change_pct": 50.0},
+                {**common, "origin_name": "China", "base_value_usd": 50.0, "compare_value_usd": 48.0,
+                 "value_change_usd": -2.0, "value_growth_pct": -4.0, "quantity_growth_pct": -5.0,
+                 "base_share_pct": 50.0, "compare_share_pct": 40.0, "share_change_pp": -10.0,
+                 "base_unit_value_usd": 2.0, "compare_unit_value_usd": 2.5, "unit_value_change_pct": 25.0},
+            ]
+        )
+        claims = {row["id"]: row["claim"] for row in report_module._comparison_findings(changes, "China", "no.")}
+        claim = claims["unit_value"]
+        self.assertIn("单位价值代理", claim)
+        self.assertIn("申报数量", claim)
+        self.assertIn("DataWeb 统计单位 No.", claim)
+        self.assertIn("包含 scope 内产品结构", claim)
+        self.assertIn("不是同类产品成交价格", claim)
+
+    def test_proxy_table_includes_the_denominator_it_promises(self) -> None:
+        table = report_module.proxy_notes_table(
+            [{
+                "item_id": "unit_value", "evidence_label": "Derived",
+                "source_fields": "CONS_CUSTOMS_VALUE; CONS_FIR_UNIT_QUANT",
+                "formula": "CONS_CUSTOMS_VALUE / CONS_FIR_UNIT_QUANT",
+                "denominator": "reported import quantity (CONS_FIR_UNIT_QUANT; HTS statistical unit No.)",
+                "unit": "USD per No.", "represents": "customs value per reported quantity",
+                "does_not_represent": "transaction price", "quality_warning": "product mix",
+            }]
+        )
+        self.assertIn("| 分母 |", table[0])
+        self.assertIn("reported import quantity", table[2])
+
     def test_second_unit_is_reported_as_left_for_later(self) -> None:
         claims = {item["id"]: item for item in self.findings(second_unit="kg", second_units=["kg"])["findings"]}
         self.assertEqual(claims["second_unit"]["label"], "Unknown")

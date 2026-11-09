@@ -30,6 +30,18 @@ PROXY_NOTE_COLUMNS = (
 )
 
 
+def display_quantity_unit(value: str | None) -> str:
+    """Return a user-facing HTS quantity-unit label.
+
+    Scope identities are normalized to lower case for comparison and hashing.
+    Display keeps the Schedule's conventional ``No.`` spelling; symbols such
+    as ``kg`` are already conventionally lower case.
+    """
+
+    unit = str(value or "").strip()
+    return "No." if unit.lower() == "no." else unit
+
+
 def _period(data_through: Mapping[str, Any]) -> str:
     return "; ".join(
         f"{frequency} through {value}"
@@ -79,6 +91,13 @@ def build_proxy_notes(
         quantity_specs.append(("unit_value_2", "CONS_SEC_UNIT_QUANT", second_quantity_unit))
 
     for item_id, quantity_field, unit_name in quantity_specs:
+        display_unit = display_quantity_unit(unit_name)
+        count_warning = (
+            " No. is the HTS statistical count unit for reported articles; it does not standardize "
+            "storage capacity, weight, package type or product specification, and it is not a count of customs declarations."
+            if display_unit == "No."
+            else ""
+        )
         rows.append(
             {
                 "item_id": item_id,
@@ -87,15 +106,15 @@ def build_proxy_notes(
                 "source_dataset": "USITC DataWeb, U.S. imports for consumption",
                 "source_fields": f"CONS_CUSTOMS_VALUE; {quantity_field}",
                 "formula": f"CONS_CUSTOMS_VALUE / {quantity_field}",
-                "denominator": f"reported import quantity ({quantity_field})",
-                "unit": f"USD per {unit_name}",
+                "denominator": f"reported import quantity ({quantity_field}; HTS statistical unit {display_unit})",
+                "unit": f"USD per {display_unit}",
                 "represents": "average customs value per reported quantity within the selected HTS scope, origin and period",
                 "does_not_represent": "a transaction price, company ASP, market price, per-capacity price or a quality-adjusted price index",
                 "data_period": period,
                 "classification_release": releases,
                 "quality_warning": (
                     "Product technology, capacity, package and specification mix can change the result; Census may suppress "
-                    f"quantity without a flag. {continuity}"
+                    f"quantity without a flag.{count_warning} {continuity}"
                 ),
             }
         )
