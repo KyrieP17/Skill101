@@ -81,7 +81,7 @@ unset DATAWEB_TOKEN
 .venv/bin/python run.py all --study config/studies/smartphones-2022-2026.toml
 ```
 
-DataWeb updates and revises its data, so your numbers may differ a little from the sample. The final PDF needs the agent to write `brief.md` first, then `run.py report-pdf --study ...` (which runs `brief-check` first).
+DataWeb updates and revises its data, so your numbers may differ a little from the sample. Everything defaults to English. Only report prose and the generated appendix switch to Chinese when the conversation or request is Chinese; charts and HTS category labels remain English. The final PDF needs the agent to write `brief.md` first, then `run.py report-pdf --study ... --lang en|zh` (which runs `brief-check` first).
 
 **4. Study your own product**
 

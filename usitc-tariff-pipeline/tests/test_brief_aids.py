@@ -275,9 +275,11 @@ class BriefCheckTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def check(self, text: str) -> dict:
+    def check(self, text: str, chart_manifest: dict | None = None) -> dict:
         (self.out / "brief.md").write_text(text, encoding="utf-8")
-        return brief_check.check_brief(self.out, manifest=self.manifest, chart_manifest={"charts": []})
+        return brief_check.check_brief(
+            self.out, manifest=self.manifest, chart_manifest=chart_manifest or {"charts": []}
+        )
 
     def checks(self, text: str) -> set[str]:
         return {item["check"] for item in self.check(text)["errors"]}
@@ -328,6 +330,47 @@ class BriefCheckTests(unittest.TestCase):
         self.assertEqual(self.checks(GOOD_BRIEF), {"mention"})
         self.assertEqual(self.checks(GOOD_BRIEF.replace("无。", "India 可以作为焦点来源地重跑。")), set())
 
+    def test_product_mix_chart_requires_codebook_with_official_descriptions(self) -> None:
+        (self.out / "charts").mkdir()
+        pd.DataFrame([
+            {"hts10_code": "1111110010", "hts10_display_label_en": "Product A",
+             "hts10_description": "Synthetic product A",
+             "product_share_status": "measured"},
+            {"hts10_code": "1111110020", "hts10_display_label_en": "Product B",
+             "hts10_description": "Synthetic product B",
+             "product_share_status": "measured"},
+        ]).to_csv(self.out / "charts" / "12_product_mix.csv", index=False)
+        manifest = {"charts": [{
+            "png": {"path": "charts/12_product_mix.png"},
+            "chart_data": {"path": "charts/12_product_mix.csv"},
+        }]}
+
+        def with_body(extra: str) -> str:
+            return GOOD_BRIEF.replace(
+                "\n## 4. 值得关注的问题",
+                f"\n\n![mix](charts/12_product_mix.png)\n\n{extra}\n\n## 4. 值得关注的问题",
+            )
+
+        missing = self.check(with_body(""), manifest)
+        self.assertEqual({item["check"] for item in missing["errors"]}, {"hts10_codebook"})
+        code_only = self.check(with_body(
+            "| HTS10 | 中文类目 |\n|---|---|\n"
+            "| `1111.11.00.10` | 合成产品甲 |\n| `1111.11.00.20` | 合成产品乙 |"
+        ), manifest)
+        self.assertEqual({item["check"] for item in code_only["errors"]}, {"hts10_codebook"})
+        official_only = self.check(with_body(
+            "| HTS10 | Official HTS description (English) |\n|---|---|\n"
+            "| `1111.11.00.10` | Synthetic product A |\n"
+            "| `1111.11.00.20` | Synthetic product B |"
+        ), manifest)
+        self.assertEqual({item["check"] for item in official_only["errors"]}, {"hts10_codebook"})
+        complete = self.check(with_body(
+            "| HTS10 | Readable category (English) | Official HTS description (English) |\n|---|---|---|\n"
+            "| `1111.11.00.10` | Product A | Synthetic product A |\n"
+            "| `1111.11.00.20` | Product B | Synthetic product B |"
+        ), manifest)
+        self.assertEqual(complete["status"], "pass", complete["errors"])
+
     def test_number_parsing(self) -> None:
         found = brief_check.numbers("份额 70.0% → 60.0%，2025-04 只有 28.6 亿美元，T3、8517.13 和 `abc 12`")
         self.assertEqual([(item.value, item.unit) for item in found], [(70.0, "%"), (60.0, "%"), (28.6, "亿美元")],
@@ -344,6 +387,12 @@ class BriefCheckTests(unittest.TestCase):
              (120.0, "mn"), (58.9, "bn"), (4.4, "x"), (4.4, "×")],
         )
         self.assertEqual(brief_check.SCALES[english[3].unit], (1e9,))
+        capacity = brief_check.numbers("1 Gb; 512 Mb; 8 GB")
+        self.assertEqual(
+            [(item.value, item.unit, item.ambiguous_unit) for item in capacity],
+            [(1.0, "Gb", None), (512.0, "Mb", None), (8.0, None, "GB")],
+            "bit-capacity abbreviations are case-sensitive and must not turn GB/MB into bits",
+        )
         ambiguous = brief_check.numbers("Value 7 EUR and 3 widgets")
         self.assertEqual([(item.value, item.unit, item.ambiguous_unit) for item in ambiguous],
                          [(7.0, None, "EUR"), (3.0, None, None)])

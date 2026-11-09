@@ -82,9 +82,11 @@ class MarkdownTests(unittest.TestCase):
         self.assertIn("<blockquote><p>note</p></blockquote>", body)
         self.assertIn("<hr>", body)
 
-    def test_language_follows_the_brief(self) -> None:
-        self.assertEqual(report_language("# 锂电池"), "zh")
+    def test_language_defaults_to_english_and_accepts_an_explicit_override(self) -> None:
+        self.assertEqual(report_language("# 锂电池"), "en")
         self.assertEqual(report_language("# Batteries"), "en")
+        self.assertEqual(report_language("# Batteries with 中文 terminology"), "en")
+        self.assertEqual(report_language("# 锂电池", "zh"), "zh")
         self.assertEqual(report_language("# 锂电池", "en"), "en")
         with self.assertRaises(FinalReportError):
             report_language("# x", "fr")
@@ -94,6 +96,10 @@ class CommandTests(unittest.TestCase):
     def test_report_pdf_command(self) -> None:
         args = build_parser().parse_args(["report-pdf", "--study", "s.toml", "--lang", "en"])
         self.assertEqual((args.command, args.study, args.lang), ("report-pdf", Path("s.toml"), "en"))
+
+    def test_report_pdf_defaults_to_english(self) -> None:
+        args = build_parser().parse_args(["report-pdf", "--study", "s.toml"])
+        self.assertEqual(args.lang, "en")
 
     def test_missing_browser_path_is_an_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -133,7 +139,7 @@ class FinalReportEndToEndTests(unittest.TestCase):
         before = {path.name: path.read_bytes() for path in out.iterdir() if path.is_file()}
         from usitc_pipeline.study_pipeline import final_report_study
 
-        result = final_report_study(self.config, self.study, printer=fake_printer)
+        result = final_report_study(self.config, self.study, language="zh", printer=fake_printer)
         self.assertEqual(result["language"], "zh")
         self.assertEqual(result["body_charts"], [first])
         self.assertEqual(result["appendix_charts"], rest)
@@ -219,7 +225,7 @@ class FinalReportEndToEndTests(unittest.TestCase):
             chat_confirmation="批准",
             confirm_prefix=json.loads(card.read_text(encoding="utf-8"))["scope_sha256"][:8],
         )
-        out, build = self.build(seven("合成产品", "正文。"))
+        out, build = self.build(seven("合成产品", "正文。"), language="zh")
         build()
         manifest = json.loads((out / "analysis_manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["gate"]["approval_method"], "chat")

@@ -1,6 +1,6 @@
 # Approval card: what the agent shows the user
 
-Fill this in from the `approval-card.json` that `scope-validate --approval-card` wrote. Show it once in chat and ask one question with three answers in the user's language: **批准 / 要改 / 不批准**, or **Approve / Revise / Reject** for an English reader (use your question tool if you have one, with the card in the question or its preview, because the user may see only the dialog). Then stop until the user answers.
+Fill this in from the `approval-card.json` that `scope-validate --approval-card` wrote. User-facing output defaults to English; use Chinese when the user is conversing in Chinese or explicitly requests it. Show the card once and ask one question with three answers: **批准 / 要改 / 不批准** in Chinese, or **Approve / Revise / Reject** in English (use your question tool if you have one, with the card in the question or its preview, because the user may see only the dialog). Then stop until the user answers.
 
 `<python>` is the interpreter from the skill's `config.json`, `<skill>` the skill folder. Paths after the command are relative to the project, because the wrapper runs there.
 

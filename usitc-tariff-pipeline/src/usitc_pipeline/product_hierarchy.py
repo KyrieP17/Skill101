@@ -30,6 +30,10 @@ MATRIX_COLUMNS = (
     "hts8_description",
     "hts10_code",
     "hts10_description",
+    "hts10_category_group_en",
+    "hts10_classification_path_en",
+    "hts10_display_label_en",
+    "hts10_label_status",
     "quantity_unit",
     "hts8_mfn_rate",
     "additional_tariff_status",
@@ -55,6 +59,10 @@ CHART_COLUMNS = (
     "hts8_description",
     "hts10_code",
     "hts10_description",
+    "hts10_category_group_en",
+    "hts10_classification_path_en",
+    "hts10_display_label_en",
+    "hts10_label_status",
     "latest_full_period_import_value_usd",
     "share_of_parent_hts6_pct",
     "focal_origin",
@@ -115,6 +123,122 @@ def _rate_for_hts8(by_code: Mapping[str, Mapping[str, Any]], code8: str) -> str:
 def _description(by_code: Mapping[str, Mapping[str, Any]], code: str) -> str:
     row = by_code.get(code) or {}
     return _text(row.get("description") or row.get("briefDescription") or row.get("longDescription"))
+
+
+def _indent(row: Mapping[str, Any]) -> int | None:
+    try:
+        return int(str(row.get("indent", "")).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_superior(row: Mapping[str, Any]) -> bool:
+    return str(row.get("superior", "")).strip().casefold() in {"true", "1", "yes"}
+
+
+def _classification_context(
+    structure: Sequence[Mapping[str, Any]], parent_hts6: str
+) -> dict[str, dict[str, Any]]:
+    """Attach official blank-code superior headings to their HTS10 children.
+
+    The HTS JSON uses ordered rows plus ``indent`` for headings such as
+    ``Dynamic read-write random access (DRAM):``. Those headings have no
+    ``htsno`` and are therefore easy to lose when a scope is subsetted. This
+    parser is deliberately fail-closed: without the official superior row it
+    keeps the leaf description and does not guess a family from the wording.
+    """
+
+    context: dict[str, dict[str, Any]] = {}
+    headings: list[tuple[int, str]] = []
+    active = False
+    for raw in structure:
+        row = dict(raw)
+        code = _digits(row.get("htsno") or row.get("hts_code"))
+        indent = _indent(row)
+        if code:
+            belongs = len(code) in {6, 8, 10} and code.startswith(parent_hts6)
+            if not belongs:
+                if active:
+                    active = False
+                    headings = []
+                continue
+            active = True
+            if indent is None:
+                headings = []
+            else:
+                headings = [(level, text) for level, text in headings if level < indent]
+            if len(code) == 10:
+                context[code] = {
+                    "superior_descriptions": [text for _, text in headings],
+                    "nearest_superior_description": headings[-1][1] if headings else "",
+                }
+            continue
+
+        description = _text(row.get("description"))
+        if not active or indent is None or not description or not _is_superior(row):
+            continue
+        headings = [(level, text) for level, text in headings if level < indent]
+        headings.append((indent, description.rstrip(":")))
+    return context
+
+
+def _deduplicated_path(parts: Sequence[str]) -> str:
+    unique: list[str] = []
+    for part in (_text(value).rstrip(":") for value in parts):
+        if part and (not unique or part != unique[-1]):
+            unique.append(part)
+    return " > ".join(unique)
+
+
+def _category_short_name(description: str) -> str:
+    clean = description.rstrip(":").strip()
+    match = re.search(r"\s*\(([A-Z][A-Z0-9+&./-]{1,15})\)\s*$", clean)
+    return match.group(1) if match else clean
+
+
+def _standalone_leaf_label(description: str) -> str:
+    compact = _compact_threshold_detail(description)
+    if compact != description:
+        return compact
+    clean = description.rstrip(":").strip()
+    match = re.search(r"\s*\(([A-Z][A-Z0-9+&./-]{1,15})\)\s*$", clean)
+    if not match:
+        return clean
+    base = clean[:match.start()].strip()
+    return f"{match.group(1)} - {base}" if base else match.group(1)
+
+
+def _compact_threshold_detail(description: str) -> str:
+    """Shorten an official bit-capacity threshold without changing its boundary."""
+
+    amount = r"(\d+(?:\.\d+)?)"
+    unit = r"(kilobits?|megabits?|gigabits?|terabits?)"
+    unit_labels = {
+        "kilobit": "Kb",
+        "megabit": "Mb",
+        "gigabit": "Gb",
+        "terabit": "Tb",
+    }
+
+    def label(raw_unit: str) -> str:
+        return unit_labels[raw_unit.casefold().rstrip("s")]
+
+    not_over = re.fullmatch(rf"Not over {amount} {unit}", description, flags=re.IGNORECASE)
+    if not_over:
+        return f"<={not_over.group(1)} {label(not_over.group(2))}"
+    band = re.fullmatch(
+        rf"Over {amount} {unit} but not over {amount} {unit}", description, flags=re.IGNORECASE
+    )
+    if band:
+        lower_amount, lower_unit, upper_amount, upper_unit = band.groups()
+        lower_label = label(lower_unit)
+        upper_label = label(upper_unit)
+        lower = f"{lower_amount} {lower_label}"
+        return f">{lower} to <={upper_amount} {upper_label}"
+    over = re.fullmatch(rf"Over {amount} {unit}", description, flags=re.IGNORECASE)
+    if over:
+        return f">{over.group(1)} {label(over.group(2))}"
+    return description
 
 
 def _as_records(value: pd.DataFrame | Sequence[Mapping[str, Any]] | None) -> list[dict[str, Any]]:
@@ -214,6 +338,7 @@ def build_product_hierarchy_matrix(
     parent = _digits(parent_hts6)
     if len(parent) != 6:
         raise ProductHierarchyError(f"parent_hts6 must contain exactly 6 digits, got {parent_hts6!r}")
+    classification_context = _classification_context(structure, parent)
     by_code = {
         _digits(row.get("htsno") or row.get("hts_code")): row
         for row in structure
@@ -242,6 +367,21 @@ def build_product_hierarchy_matrix(
         children = [code for code in hts10_codes if code.startswith(code8)] or [""]
         for code10 in children:
             structure_row = by_code.get(code10) or by_code.get(code8) or {}
+            leaf_description = _description(by_code, code10) if code10 else ""
+            category_context = classification_context.get(code10, {})
+            superior_descriptions = list(category_context.get("superior_descriptions") or [])
+            superior_group = _text(category_context.get("nearest_superior_description"))
+            category_group = superior_group or leaf_description
+            short_group = _category_short_name(category_group) if category_group else ""
+            short_leaf = _standalone_leaf_label(leaf_description)
+            display_label = (
+                f"{short_group} - {short_leaf}"
+                if superior_group and leaf_description and leaf_description != category_group
+                else short_leaf or short_group or leaf_description
+            )
+            classification_path = _deduplicated_path(
+                [_description(by_code, code8), *superior_descriptions, leaf_description]
+            )
             unit = _units(structure_row.get("units"))
             status, additional_rate, tariff_note = _treatment_for(code10 or code8, treatments)
 
@@ -302,7 +442,13 @@ def build_product_hierarchy_matrix(
                 "hts8_code": code8,
                 "hts8_description": _description(by_code, code8),
                 "hts10_code": code10 or pd.NA,
-                "hts10_description": _description(by_code, code10) if code10 else "",
+                "hts10_description": leaf_description,
+                "hts10_category_group_en": category_group,
+                "hts10_classification_path_en": classification_path,
+                "hts10_display_label_en": display_label,
+                "hts10_label_status": (
+                    "official_hierarchy" if superior_group else "official_leaf" if leaf_description else "unavailable"
+                ),
                 "quantity_unit": unit,
                 "hts8_mfn_rate": _rate_for_hts8(by_code, code8),
                 "additional_tariff_status": status,

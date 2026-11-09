@@ -148,8 +148,6 @@ HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 LIST_ITEM = re.compile(r"^(\s*)([-*+]|\d+[.)])\s+(.*)$")
 TABLE_RULE = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$")
 IMAGE_LINE = re.compile(r"^\s*!\[([^\]]*)\]\(([^)\s]+)\)\s*$")
-CJK = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]")
-
 ImageSource = Callable[[str], str]
 
 
@@ -326,13 +324,13 @@ def markdown_html(text: str, image: ImageSource) -> tuple[str, str]:
 
 
 def report_language(text: str, requested: str | None = None) -> str:
-    """``zh`` for a brief written in Chinese (or another CJK language), else ``en``."""
+    """Return the explicitly requested report language; default to English."""
 
-    if requested:
-        if requested not in LABELS:
-            raise FinalReportError(f"Unknown report language {requested!r}; use one of {sorted(LABELS)}")
-        return requested
-    return "zh" if CJK.search(text) else "en"
+    if requested is None:
+        return "en"
+    if requested not in LABELS:
+        raise FinalReportError(f"Unknown report language {requested!r}; use one of {sorted(LABELS)}")
+    return requested
 
 
 def _pct(value: float | None) -> str:

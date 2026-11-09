@@ -84,7 +84,7 @@ Do not rewrite earlier entries. If a decision changes, append a dated entry that
 6. **部分年度**：最后一个年度期只有月度数据到 12 月、或取数日期 ≥ 次年 3 月 1 日才算全年；否则年度对比跳过，只做 YTD。
 7. **highlight 上限 6 个**，其余并入 "Other reported origins"，每个来源地固定配色。
 8. **单位价值图**隐藏价值占比 < 1% 的来源地-月份，避免小样本噪声。
-9. **语言**：报告正文中文，图里的文字英文。
+9. **语言**：所有内容优先英文。只有报告正文和生成附录在用户用中文对话或明确要求中文时改用中文；图表、HTS 类目和 canonical 字段始终保留英文。码表同时列紧凑英文类目和 HTS 官方英文描述。语言只属于渲染层，不改变 scope、plan、study 哈希、分析表或缓存。
 10. **单编码 scope 不画 02**（scope 内各编码的重分配）。
 11. **要点排序**：realized duty 排在 unit value 前面。
 12. **编码的名称**：`product_reallocation.csv` 里每个编码的 `product` 列用 DataWeb 的原描述；图和报告的产品名用 scope 的 `product_name`。
@@ -184,7 +184,7 @@ Do not rewrite earlier entries. If a decision changes, append a dated entry that
 
 - "最后输出可以选用英文或者其他语言，这个都ok，反正大模型会自己决定。但我想要最终的输出是一个report来的"
 - 用户选了 PDF，内容是"brief 正文 + 附录"。
-- 落实：`report-pdf --study ...` 把 agent 写的 `brief.md` 作为正文，附录从已验证的文件生成（研究身份和完整哈希、数据核对、不能下的结论、正文没放的图、文件哈希），写 `final_report.html/.pdf/.json`；PDF 由本机 Edge/Chrome 无界面打印。语言由 agent 定，附录跟着 brief 的语言（中文或英文）。不改任何 study 的哈希、缓存和已有输出。
+- 落实：`report-pdf --study ...` 把 agent 写的 `brief.md` 作为正文，附录从已验证的文件生成（研究身份和完整哈希、数据核对、不能下的结论、正文没放的图、文件哈希），写 `final_report.html/.pdf/.json`；PDF 由本机 Edge/Chrome 无界面打印。只有报告正文和附录跟随用户语言：中文对话或明确要求中文时传 `--lang zh`，否则传 `--lang en`。图表、HTS 类目和 canonical 字段始终为英文。语言只影响交付渲染，不改 study 哈希或缓存。
 
 ### D-021 — 批准卡片在对话里发给用户确认
 

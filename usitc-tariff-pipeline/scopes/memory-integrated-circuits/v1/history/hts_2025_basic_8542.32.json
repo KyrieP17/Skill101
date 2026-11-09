@@ -22,6 +22,20 @@
     "addiitionalDuties": null
   },
   {
+    "htsno": "",
+    "indent": "3",
+    "description": "Dynamic read-write random access (DRAM):",
+    "superior": "true",
+    "units": [],
+    "general": "",
+    "special": "",
+    "other": "",
+    "footnotes": null,
+    "quotaQuantity": null,
+    "additionalDuties": null,
+    "addiitionalDuties": null
+  },
+  {
     "htsno": "8542.32.00.02",
     "indent": "4",
     "description": "Not over 128 megabits",

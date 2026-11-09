@@ -148,7 +148,10 @@ def build_parser() -> argparse.ArgumentParser:
     final_target = final.add_mutually_exclusive_group(required=True)
     final_target.add_argument("--study", type=Path, help="Study TOML whose analysis directory holds brief.md")
     final_target.add_argument("--replay", type=Path, help="Replay TOML whose analysis directory holds brief.md")
-    final.add_argument("--lang", choices=("zh", "en"), default=None, help="Appendix language (default: follow brief.md)")
+    final.add_argument(
+        "--lang", choices=("zh", "en"), default="en",
+        help="Appendix language (default: en; pass zh for Chinese output)",
+    )
     final.add_argument("--browser", type=Path, default=None, help="Edge or Chrome executable that prints the PDF")
     return parser
 

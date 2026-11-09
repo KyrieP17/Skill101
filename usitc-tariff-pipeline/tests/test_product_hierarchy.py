@@ -13,15 +13,16 @@ PROJECT_ROOT = TESTS_DIR.parent
 if str(PROJECT_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from usitc_pipeline import product_hierarchy  # noqa: E402
+from usitc_pipeline import charts, product_hierarchy, report  # noqa: E402
 
 
 STRUCTURE = [
-    {"htsno": "8542.32", "description": "Memories"},
-    {"htsno": "8542.32.00", "description": "Memories", "general": "Free"},
-    {"htsno": "8542.32.00.11", "description": "Dynamic random access", "units": ["No."]},
-    {"htsno": "8542.32.00.21", "description": "Static random access", "units": ["No."]},
-    {"htsno": "8542.32.00.41", "description": "Flash memory", "units": ["No."]},
+    {"htsno": "8542.32", "indent": "1", "description": "Memories"},
+    {"htsno": "8542.32.00", "indent": "2", "description": "Memories", "general": "Free"},
+    {"htsno": "", "indent": "3", "description": "Dynamic read-write random access (DRAM):", "superior": "true"},
+    {"htsno": "8542.32.00.11", "indent": "4", "description": "Not over 128 megabits", "units": ["No."]},
+    {"htsno": "8542.32.00.21", "indent": "4", "description": "Over 128 megabits", "units": ["No."]},
+    {"htsno": "8542.32.00.41", "indent": "3", "description": "Static read-write random access (SRAM)", "units": ["No."]},
 ]
 
 
@@ -63,6 +64,94 @@ class ProductHierarchyTests(unittest.TestCase):
         self.assertTrue(layout["collapse_hts8"])
         self.assertEqual(layout["display_mode"], "horizontal_bar_single_hts8")
         self.assertTrue(layout["chart_status"].startswith("unavailable_"))
+
+    def test_official_superior_heading_makes_hts10_labels_readable(self) -> None:
+        matrix = self.build().set_index("hts10_code")
+        self.assertEqual(
+            matrix.at["8542320011", "hts10_category_group_en"],
+            "Dynamic read-write random access (DRAM)",
+        )
+        self.assertEqual(
+            matrix.at["8542320011", "hts10_classification_path_en"],
+            "Memories > Dynamic read-write random access (DRAM) > Not over 128 megabits",
+        )
+        self.assertEqual(matrix.at["8542320011", "hts10_display_label_en"], "DRAM - <=128 Mb")
+        self.assertEqual(matrix.at["8542320021", "hts10_display_label_en"], "DRAM - >128 Mb")
+        self.assertEqual(matrix.at["8542320011", "hts10_label_status"], "official_hierarchy")
+        self.assertEqual(
+            matrix.at["8542320041", "hts10_display_label_en"],
+            "SRAM - Static read-write random access",
+        )
+        self.assertNotIn("DRAM", matrix.at["8542320041", "hts10_classification_path_en"])
+
+    def test_missing_superior_heading_does_not_guess_a_product_family(self) -> None:
+        structure = [row for row in STRUCTURE if not row.get("superior")]
+        matrix = product_hierarchy.build_product_hierarchy_matrix(
+            structure, parent_hts6="854232"
+        ).set_index("hts10_code")
+        self.assertEqual(matrix.at["8542320011", "hts10_display_label_en"], "<=128 Mb")
+        self.assertEqual(matrix.at["8542320011", "hts10_label_status"], "official_leaf")
+
+    def test_missing_indent_clears_an_active_superior_heading(self) -> None:
+        structure = [dict(row) for row in STRUCTURE]
+        structure[3].pop("indent")
+        matrix = product_hierarchy.build_product_hierarchy_matrix(
+            structure, parent_hts6="854232"
+        ).set_index("hts10_code")
+        self.assertEqual(matrix.at["8542320011", "hts10_display_label_en"], "<=128 Mb")
+        self.assertEqual(matrix.at["8542320021", "hts10_display_label_en"], ">128 Mb")
+
+    def test_nontrailing_acronym_never_replaces_the_official_product_name(self) -> None:
+        label = product_hierarchy._standalone_leaf_label(
+            "Canadian western extra strong hard red spring (CWES/HRS) wheat"
+        )
+        self.assertEqual(label, "Canadian western extra strong hard red spring (CWES/HRS) wheat")
+
+    def test_capacity_band_keeps_both_units_and_the_inclusive_upper_bound(self) -> None:
+        self.assertEqual(
+            product_hierarchy._compact_threshold_detail(
+                "Over 128 megabits but not over 256 megabits"
+            ),
+            ">128 Mb to <=256 Mb",
+        )
+        self.assertEqual(
+            product_hierarchy._compact_threshold_detail(
+                "Over 512 megabits but not over 1 gigabit"
+            ),
+            ">512 Mb to <=1 Gb",
+        )
+
+    def test_report_and_chart_labels_keep_reader_and_official_text_separate(self) -> None:
+        matrix = self.build(
+            trade_rows=trade(), full_period="2025", independent_hts6_world_value_usd=1000,
+            independent_hts6_world_period="2025",
+        )
+        rendered = "\n".join(report.product_hierarchy_table(matrix.to_dict("records")))
+        self.assertIn("可读类目（英文，官方层级）", rendered)
+        self.assertIn("官方 HTS 描述（英文）", rendered)
+        self.assertIn("DRAM - <=128 Mb", rendered)
+        self.assertIn("Not over 128 megabits", rendered)
+        row = matrix[matrix["hts10_code"].eq("8542320011")].iloc[0]
+        self.assertEqual(
+            charts._product_mix_axis_label(row),
+            "8542320011 | DRAM - <=128 Mb",
+        )
+
+    def test_product_mix_axis_label_wraps_without_truncating_long_english_category(self) -> None:
+        display = "EEPROM - Electrically erasable programmable read-only memory"
+        label = charts._product_mix_axis_label(
+            pd.Series({"hts10_code": "8542320051", "hts10_display_label_en": display})
+        )
+        self.assertNotIn("…", label)
+        self.assertIn("\n", label)
+        self.assertEqual(" ".join(label.split()), f"8542320051 | {display}")
+
+        unbroken = "X" * 90
+        unbroken_label = charts._product_mix_axis_label(
+            pd.Series({"hts10_code": "1234567890", "hts10_display_label_en": unbroken})
+        )
+        self.assertNotIn("…", unbroken_label)
+        self.assertEqual("".join(unbroken_label.split()).removeprefix("1234567890|"), unbroken)
 
     def test_import_mix_uses_independent_hts6_denominator_and_does_not_renormalize(self) -> None:
         matrix = self.build(
@@ -135,6 +224,7 @@ class ProductHierarchyTests(unittest.TestCase):
         self.assertEqual(list(chart.columns), list(product_hierarchy.CHART_COLUMNS))
         self.assertEqual(chart["sort_order"].tolist(), [1, 2, 3])
         self.assertEqual(chart["hts10_code"].tolist(), ["8542320011", "8542320021", "8542320041"])
+        self.assertEqual(chart.iloc[0]["hts10_display_label_en"], "DRAM - <=128 Mb")
         self.assertTrue(chart["proxy_note"].str.contains("not market share").all())
         self.assertTrue(chart["proxy_note"].str.contains("China customs value / HTS10 World").all())
         self.assertTrue(chart["proxy_note"].str.contains("reported country of origin").all())

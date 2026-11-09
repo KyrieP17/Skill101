@@ -631,8 +631,8 @@ def product_hierarchy_table(rows: list[dict[str, Any]]) -> list[str]:
         return str(value).replace("|", "/").replace("\n", " ") or "—"
 
     table = [
-        "| HTS8 法定税率行 | HTS10 统计品类 | 产品 | 单位 | HTS8 Column 1-General | 附加税状态/公式 | HTS10 占 HTS6 进口额 | 数据状态 |",
-        "|---|---|---|---|---|---|---|---|",
+        "| HTS8 法定税率行 | HTS10 | 可读类目（英文，官方层级） | 官方 HTS 描述（英文） | 单位 | HTS8 Column 1-General | 附加税状态/公式 | HTS10 占 HTS6 进口额 | 数据状态 |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for row in rows:
         share = row.get("share_of_parent_hts6_pct")
@@ -641,7 +641,8 @@ def product_hierarchy_table(rows: list[dict[str, Any]]) -> list[str]:
             item for item in (cell(row.get("additional_tariff_status")), cell(row.get("additional_tariff_rate"))) if item != "—"
         ) or "—"
         table.append(
-            f"| {cell(row.get('hts8_code'))} | {cell(row.get('hts10_code'))} | {cell(row.get('hts10_description'))} | "
+            f"| {cell(row.get('hts8_code'))} | {cell(row.get('hts10_code'))} | "
+            f"{cell(row.get('hts10_display_label_en'))} | {cell(row.get('hts10_description'))} | "
             f"{cell(row.get('quantity_unit'))} | {cell(row.get('hts8_mfn_rate'))} | {treatment} | {share_text} | "
             f"{cell(row.get('product_share_status'))} |"
         )

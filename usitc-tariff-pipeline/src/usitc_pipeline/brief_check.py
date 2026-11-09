@@ -8,6 +8,9 @@ Errors (``report-pdf`` refuses the brief):
   recognised by keywords in their ``##`` headings.  The HTS4 map left the
   brief (D-025): an HTS4 section is a warning, like any other extra section.
 * ``image``: every embedded image is a chart in ``chart_manifest.json``.
+* ``hts10_codebook``: an embedded chart 12 has one Markdown table row per
+  shown HTS10, with that code, compact English category and official English
+  description together.
 * ``label``: evidence labels are ``**[Measured]**``, ``**[Derived]**``,
   ``**[Inference]**`` or ``**[Unknown]**`` (combined with " / ").
 * ``source``: every cited ``.csv`` / ``.json`` is a validated output of this
@@ -84,7 +87,9 @@ CURRENCY_PREFIX = re.compile(r"(?:US\$|\$|USD)\s*[+\-−]?$", re.IGNORECASE)
 UNKNOWN_CURRENCY = r"(?:EUR|GBP|JPY|CNY|RMB|CAD|AUD|CHF|KRW|TWD|HKD|SGD|INR|MXN|VND)"
 UNKNOWN_PREFIX_UNIT = re.compile(rf"(?:\b{UNKNOWN_CURRENCY}|[A-Z]{{1,3}}\$)\s*[+\-−]?$")
 # Kinds of table cells a shown number can come from (from the column name, see column_kind).
-PCT, PP, USD, QUANTITY, UNIT_VALUE, RATIO = "pct", "pp", "usd", "quantity", "unit_value", "ratio"
+PCT, PP, USD, QUANTITY, UNIT_VALUE, RATIO, CAPACITY = (
+    "pct", "pp", "usd", "quantity", "unit_value", "ratio", "capacity"
+)
 # unit text -> (scales the shown number may have been divided by, cell kinds it may come from); longest first.
 UNITS: tuple[tuple[str, tuple[float, ...], frozenset[str]], ...] = tuple(sorted(
     ((text, scales, frozenset(kinds))
@@ -112,12 +117,27 @@ UNITS: tuple[tuple[str, tuple[float, ...], frozenset[str]], ...] = tuple(sorted(
         ("million USD", (1e6,), {USD}), ("mn USD", (1e6,), {USD}),
         ("美元", (1.0,), {USD, UNIT_VALUE}), ("USD", (1.0,), {USD, UNIT_VALUE}),
         ("倍", (1.0,), {RATIO}), ("×", (1.0,), {RATIO}), ("x", (1.0,), {RATIO}),
+        ("kilobits", (1.0,), {CAPACITY}), ("kilobit", (1.0,), {CAPACITY}),
+        ("megabits", (1.0,), {CAPACITY}), ("megabit", (1.0,), {CAPACITY}),
+        ("gigabits", (1.0,), {CAPACITY}), ("gigabit", (1.0,), {CAPACITY}),
+        ("terabits", (1.0,), {CAPACITY}), ("terabit", (1.0,), {CAPACITY}),
+        ("Kb", (1.0,), {CAPACITY}), ("Mb", (1.0,), {CAPACITY}),
+        ("Gb", (1.0,), {CAPACITY}), ("Tb", (1.0,), {CAPACITY}),
         ("billion", (1e9,), {USD}), ("bn", (1e9,), {USD}), ("million", (1e6,), {USD, QUANTITY}), ("mn", (1e6,), {USD, QUANTITY}),
         ("千克", (1.0,), {QUANTITY}), ("公斤", (1.0,), {QUANTITY}), ("kg", (1.0,), {QUANTITY}),
         ("吨", (1e3, 1.0), {QUANTITY}), ("部", (1.0,), {QUANTITY}), ("件", (1.0,), {QUANTITY}),
     )), key=lambda item: len(item[0]), reverse=True)
 )
-UNIT = re.compile(r"\s*(" + "|".join(re.escape(text) for text, _, _ in UNITS) + r")(?![A-Za-z]|(?<=部)分)", re.IGNORECASE)
+CASE_SENSITIVE_UNITS = frozenset({"Kb", "Mb", "Gb", "Tb"})
+_case_sensitive_units = "|".join(
+    re.escape(text) for text, _, _ in UNITS if text in CASE_SENSITIVE_UNITS
+)
+_case_insensitive_units = "|".join(
+    re.escape(text) for text, _, _ in UNITS if text not in CASE_SENSITIVE_UNITS
+)
+UNIT = re.compile(
+    rf"\s*({_case_sensitive_units}|(?i:{_case_insensitive_units}))(?![A-Za-z]|(?<=部)分)"
+)
 SCALES = {text: scales for text, scales, _ in UNITS}
 KINDS = {text: kinds for text, _, kinds in UNITS}
 CANONICAL_UNIT = {text.casefold(): text for text, _, _ in UNITS}
@@ -446,6 +466,66 @@ def validated_sources(manifest: dict[str, Any], chart_manifest: dict[str, Any]) 
     return paths
 
 
+def _normalized_codebook_cell(value: str) -> str:
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", value)
+    text = re.sub(r"[`*_]", "", text)
+    return re.sub(r"\s+", " ", text).strip().casefold()
+
+
+def _hts10_codebook_issues(
+    output_dir: Path,
+    blocks: list[Block],
+    chart_manifest: dict[str, Any],
+    embedded_lines: dict[str, int],
+) -> list[tuple[int | None, str]]:
+    """Require a code-to-official-description table whenever chart 12 is embedded."""
+
+    table_rows = [
+        (line, _cells(text))
+        for block in blocks if block.kind == "table"
+        for line, text in block.lines
+        if not TABLE_RULE.match(text)
+    ]
+    issues: list[tuple[int | None, str]] = []
+    for chart in chart_manifest.get("charts") or []:
+        png = str((chart.get("png") or {}).get("path") or "").replace("\\", "/").removeprefix("./")
+        if Path(png).name != "12_product_mix.png" or png not in embedded_lines:
+            continue
+        chart_data = str((chart.get("chart_data") or {}).get("path") or "")
+        if not chart_data:
+            issues.append((embedded_lines[png], "chart 12 has no chart-data CSV in chart_manifest.json"))
+            continue
+        data = pd.read_csv(output_dir / chart_data, dtype=str, keep_default_na=False)
+        required = {"hts10_code", "hts10_description", "hts10_display_label_en"}
+        if not required <= set(data.columns):
+            issues.append((embedded_lines[png], f"{chart_data} lacks {sorted(required - set(data.columns))}"))
+            continue
+        if "product_share_status" in data:
+            data = data[data["product_share_status"].eq("measured")]
+        for _, row in data.drop_duplicates("hts10_code").iterrows():
+            code = re.sub(r"\D", "", row["hts10_code"])
+            official = _normalized_codebook_cell(row["hts10_description"])
+            display = _normalized_codebook_cell(row["hts10_display_label_en"])
+            code_rows = [
+                (line, cells) for line, cells in table_rows
+                if any(re.sub(r"\D", "", _normalized_codebook_cell(cell)) == code for cell in cells)
+            ]
+            if not code_rows:
+                issues.append((embedded_lines[png], f"chart 12 HTS10 {code} has no codebook table row"))
+                continue
+            if official and not any(
+                any(official in _normalized_codebook_cell(cell) for cell in cells)
+                for _, cells in code_rows
+            ):
+                issues.append((code_rows[0][0], f"HTS10 {code} codebook row omits official description {row['hts10_description']!r}"))
+            if display and not any(
+                any(display == _normalized_codebook_cell(cell) for cell in cells)
+                for _, cells in code_rows
+            ):
+                issues.append((code_rows[0][0], f"HTS10 {code} codebook row omits English category {row['hts10_display_label_en']!r}"))
+    return issues
+
+
 def check_brief(output_dir: str | Path, *, manifest: dict[str, Any], chart_manifest: dict[str, Any]) -> dict[str, Any]:
     """Check ``brief.md`` in a validated analysis directory; returns the full report."""
 
@@ -478,11 +558,19 @@ def check_brief(output_dir: str | Path, *, manifest: dict[str, Any], chart_manif
         if key is None:
             warnings.append({"check": "sections", "line": line, "message": "a ## section that is none of the six"})
 
-    charts = {str(chart["png"]["path"]) for chart in chart_manifest.get("charts") or []}
+    charts = {
+        str(chart["png"]["path"]).replace("\\", "/").removeprefix("./")
+        for chart in chart_manifest.get("charts") or []
+    }
+    embedded_lines: dict[str, int] = {}
     for number, line in enumerate(text.splitlines(), start=1):
         for src in IMAGE.findall(line):
-            if src.replace("\\", "/").removeprefix("./") not in charts:
+            normalized = src.replace("\\", "/").removeprefix("./")
+            embedded_lines[normalized] = number
+            if normalized not in charts:
                 error("image", number, f"{BRIEF} embeds {src!r}, which is not a validated chart in chart_manifest.json")
+    for line, message in _hts10_codebook_issues(output_dir, blocks, chart_manifest, embedded_lines):
+        error("hts10_codebook", line, message)
 
     hashes = [str(manifest.get(key) or "") for key in ("scope_sha256", "plan_sha256", "study_sha256")]
     for number, line in enumerate(text.splitlines(), start=1):

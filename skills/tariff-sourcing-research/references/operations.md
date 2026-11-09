@@ -23,7 +23,7 @@ python scripts\tariff_pipeline.py acquire --plan outputs\runs\<study_id>\plan-<h
 python scripts\tariff_pipeline.py all --study config\studies\<study_id>.toml   # analyze, charts, validate, report
 python scripts\tariff_pipeline.py analyze --study ...        # also charts, validate, report one at a time
 python scripts\tariff_pipeline.py brief-check --study config\studies\<study_id>.toml  # after brief.md; report-pdf refuses a failing brief
-python scripts\tariff_pipeline.py report-pdf --study config\studies\<study_id>.toml   # after brief.md: final_report.pdf
+python scripts\tariff_pipeline.py report-pdf --study config\studies\<study_id>.toml --lang en   # use zh for a Chinese conversation
 python scripts\tariff_pipeline.py registry-check [--study config\studies\<study_id>.toml]   # timeline rows against the tariff registry, read-only
 python scripts\tariff_pipeline.py test                       # the project's unit tests
 ```
@@ -45,6 +45,7 @@ python scripts/tariff_pipeline.py all --study config/studies/<study_id>.toml
 - `plan` prints the codes queried per period, the job count, `jobs_already_cached` and whether a token is needed. The same inputs give the same `plan_sha256` and directory on any machine, so it is safe to repeat.
 - `acquire --plan` re-verifies the approved scope, rebuilds the plan and refuses if anything changed. Only this command receives `DATAWEB_TOKEN`; with every job cached it needs none.
 - `all` never downloads.
+- `report-pdf` defaults to an English appendix. Pass `--lang zh` when the user is conversing in Chinese or explicitly requests Chinese. Charts and HTS category labels remain English; report language does not change hashes, analysis tables or caches.
 - `--replay config\replays\<id>.toml` (instead of `--study`) re-analyzes old snapshots listed with their response hashes. Its outputs go to `outputs/replays/`, every page says 回放结果，不是已批准研究, and no gated command accepts them.
 
 ## Directory contract

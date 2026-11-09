@@ -626,6 +626,22 @@ def plot_heading_map(heading_map: pd.DataFrame, output_dir: str | Path, labels: 
     return _finish(fig, png, labels.source + " Value and calculated duty only; quantity is not compared across HTS6 lines.")
 
 
+def _product_mix_axis_label(row: pd.Series) -> str:
+    """Complete reader label for one HTS10 bar, wrapped without truncation."""
+
+    display = str(row.get("hts10_display_label_en") or row.get("hts10_description") or "")
+    prefix = f"{row['hts10_code']} | "
+    return "\n".join(
+        textwrap.wrap(
+            prefix + " ".join(display.split()),
+            width=56,
+            subsequent_indent=" " * len(prefix),
+            break_long_words=True,
+            break_on_hyphens=False,
+        )
+    )
+
+
 def plot_product_mix(matrix: pd.DataFrame, output_dir: str | Path, labels: ChartLabels) -> Path:
     """HTS10 World composition and focal-origin penetration inside the HTS6."""
 
@@ -642,28 +658,19 @@ def plot_product_mix(matrix: pd.DataFrame, output_dir: str | Path, labels: Chart
         measured["focal_origin_source_share_pct"], errors="coerce"
     )
     measured = measured.sort_values(["hts8_code", "share_of_parent_hts6_pct"], ascending=[True, True], kind="stable")
-    short_names = {
-        "Static read-write random access (SRAM)": "SRAM",
-        "Electrically erasable programmable read-only memory (EEPROM)": "EEPROM",
-        "Erasable (except electrically) programmable read-only memory (EPROM)": "EPROM",
-    }
-    measured["label"] = measured.apply(
-        lambda row: (
-            f"{row['hts10_code']}  "
-            f"{textwrap.shorten(short_names.get(str(row['hts10_description']), str(row['hts10_description'])), width=38, placeholder='…')}"
-        ),
-        axis=1,
-    )
+    measured["label"] = measured.apply(_product_mix_axis_label, axis=1)
+    label_line_counts = measured["label"].str.count("\n").add(1).astype(int)
+    row_heights = label_line_counts.clip(lower=1).to_numpy(dtype=float)
+    positions = np.cumsum(row_heights) - (row_heights / 2.0)
     groups = {code: SLOTS[index % len(SLOTS)] for index, code in enumerate(sorted(measured["hts8_code"].unique()))}
     colors = [groups[code] for code in measured["hts8_code"]]
     plt = _plt()
     fig, (world_ax, focal_ax) = plt.subplots(
         ncols=2,
         sharey=True,
-        figsize=(13.6, max(4.8, 0.48 * len(measured) + 2.1)),
+        figsize=(13.6, max(4.8, 0.48 * float(row_heights.sum()) + 2.1)),
         gridspec_kw={"width_ratios": (1.25, 1.0), "wspace": 0.10},
     )
-    positions = np.arange(len(measured))
     world_bars = world_ax.barh(
         positions, measured["share_of_parent_hts6_pct"], color=colors, height=0.62
     )
@@ -722,7 +729,7 @@ def plot_product_mix(matrix: pd.DataFrame, output_dir: str | Path, labels: Chart
     # ``_finish`` uses tight_layout for the common chart family.  Shared-y
     # two-panel axes can opt out of that layout engine, so reserve footer and
     # long-label space explicitly before the common source/footer is added.
-    fig.subplots_adjust(left=0.22, right=0.985, top=0.84, bottom=0.23, wspace=0.10)
+    fig.subplots_adjust(left=0.29, right=0.985, top=0.84, bottom=0.23, wspace=0.10)
     return _finish(fig, png, labels.source, footer=footer, use_tight_layout=False)
 
 

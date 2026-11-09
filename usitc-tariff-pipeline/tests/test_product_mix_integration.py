@@ -368,6 +368,9 @@ release_metadata = "config/hts_structure_2025.release.json"
         self.assertAlmostEqual(matrix.loc["1111110010", "share_of_parent_hts6_pct"], 40.0)
         self.assertAlmostEqual(matrix.loc["1111110020", "share_of_parent_hts6_pct"], 60.0)
         self.assertEqual(set(matrix["classification_release"]), {"2024HTSArchived"})
+        self.assertEqual(matrix.loc["1111110010", "hts10_display_label_en"], "Synthetic product A")
+        self.assertEqual(matrix.loc["1111110020", "hts10_classification_path_en"],
+                         "Synthetic legal rate line > Synthetic product B")
 
         manifest = json.loads((out / "analysis_manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(
@@ -389,6 +392,12 @@ release_metadata = "config/hts_structure_2025.release.json"
         )
         self.assertTrue(manifest["product_mix_structure_input_sha256"])
         render_study_charts(self.config, self.paths["study"])
+        chart = pd.read_csv(out / "charts" / "12_product_mix.csv", dtype={"hts10_code": str})
+        self.assertTrue(
+            {"hts10_category_group_en", "hts10_classification_path_en", "hts10_display_label_en"}
+            <= set(chart.columns)
+        )
+        self.assertEqual(set(chart["hts10_display_label_en"]), {"Synthetic product A", "Synthetic product B"})
         validation = validate_study_outputs(self.config, self.paths["study"])
         self.assertEqual(validation["scope_sha256"], plan["scope"]["scope_sha256"])
         self.assertGreater(validation["charts"], 0)

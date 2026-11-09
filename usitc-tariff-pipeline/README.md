@@ -64,7 +64,7 @@ python run.py all --study config\studies\<study_id>.toml
 
 # 7. After the agent writes brief.md: brief-check, then the final report final_report.pdf (brief + appendix, printed with the local Edge/Chrome)
 python run.py brief-check --study config\studies\<study_id>.toml
-python run.py report-pdf --study config\studies\<study_id>.toml
+python run.py report-pdf --study config\studies\<study_id>.toml --lang en
 
 # Compare the timeline with the tariff registry (config/tariff_registry, D-026); read-only, changes no file
 python run.py registry-check --study config\studies\<study_id>.toml
