@@ -19,11 +19,12 @@ scope（这个产品是哪些 HTS 编码；用户本人批准）
 - **study**：`config/studies/<study_id>.toml`。只有 `[periods]` 影响查询；来源地、对比年份、事件窗口、事件标记随时可改，不用重新取数。字段和默认值见 skill 的 `references/study-design.md`。
 - **study 的可选项**（默认关；只改 study_sha256，plan 和缓存不变，除非另写）：`[quantity] unit = "both"`（第一单位为主，kg 等第二单位并列在 `_2` 列，数量方向相反时报警；和 `"second"` 同一批查询，复用缓存）、`[timeline]`（关税时间线，按税号一层在 `config/tariff_timelines/<scope_id>.csv`，按国家一层在 `_country.csv`；03、09 图画竖线）、`[[segments]]`（编码分段并列）、`[brief] focal_split`（焦点/其他/总计三行，含计算关税美元）、`[drilldown] structure`（下钻菜单，读 scope `history/` 里缓存的 HTS REST 结构）、`[context] hts4` + `hts6`（HTS4 地图；会在 plan 里加 `context` 查询，**要用户另外批准，acquire 不取**）。
 
-现有的两个研究都是**例子，不是模板**：
+现有的研究都是**例子，不是模板**：
 
-- 笔记本电脑：`scopes/laptops/v2/`（HTS6 847130）+ `config/studies/laptops-2017-2026.toml`，另有一个标注的 legacy replay（见第 10 节）。
-- 锂离子电池：`scopes/lithium-ion/v1/`（HTS6 850760）+ `config/studies/lithium-ion-2017-2026.toml`。
-- 锂离子电池 HTS10 + kg + 时间线 + 分段 + 下钻菜单（新功能样例）：`scopes/lithium-ion/v2/` + `config/studies/lithium-ion-hts10-both-2017-2026.toml`。
+- 智能手机（D-024 简报辅助全开：时间线、焦点拆分、变化拆分、异常表、`[[derived]]`）：`scopes/smartphones/v1/`（HTS6 851713）+ `config/studies/smartphones-2022-2026.toml`。
+- 锂离子电池 HTS10 + kg + 时间线 + 分段 + 下钻菜单：`scopes/lithium-ion/v2/` + `config/studies/lithium-ion-hts10-both-2017-2026.toml`。
+- 锂离子电池 HTS6：`scopes/lithium-ion/v1/`（HTS6 850760）+ `config/studies/lithium-ion-2017-2026.toml`。
+- 笔记本电脑：`scopes/laptops/v2/`（HTS6 847130）+ `config/studies/laptops-2017-2026.toml`。v2 scope 只有审核稿和批准卡片，要先批准才能跑（`status` 里这个 study 的 gate 是 closed）；另有一个标注的 legacy replay（见第 10 节）。
 
 哪些 scope 已批准、哪些 study 能跑、还缺什么，用 `python run.py status` 看，不写在文档里。用户做过的判断记在 [decisions.md](decisions.md)，下次做相近产品先查这里。
 

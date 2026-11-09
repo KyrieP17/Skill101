@@ -268,4 +268,4 @@ D-016 记的已知小问题（没有事件线时 03 图脚注仍讲事件线）�
   - 手机 `outputs/runs/smartphones-2022-2026/plan-2ca86ee6e514/analysis-347af3a6af92/`：brief 由上一版改写（时间线一节、T 编号、第 4 节问题），brief-check 442/442。
   - 锂电 `outputs/runs/lithium-ion-hts10-both-2017-2026/plan-2562effd15db/analysis-2c0c6daf19a5/`：brief 按六节重写，brief-check 324/324。中间只改了时间线的那次 `analysis-9d3a968fb431` 没有 brief，被这一版取代。
   - 两份 `final_report.pdf` 已生成，逐页看过。
-- 还没传 GitHub。
+- 2026-11-08 传到 GitHub（KyrieP17/Skill101，commit c2100c9）。之后加了 MIT 许可证和试用说明（仓库根目录 LICENSE、README）。
