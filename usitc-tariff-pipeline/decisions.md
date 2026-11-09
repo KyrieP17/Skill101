@@ -257,3 +257,15 @@ D-016 记的已知小问题（没有事件线时 03 图脚注仍讲事件线）�
 - 两条 `待核对`：2025-04-11 电子产品例外（9903.01.32）的备忘录不在 FR 里，例外从哪天起适用没读到；2026-02-20 EO 14389 停止 IEEPA 加征，没写停征日，HTS 2026 Rev22 里这些税号也没有终止注释。锂电池在 122 和 301 新税下"适用"这两三条也是待核对：只读了豁免清单的前几项。
 - 对照结果：手机时间线 12 行吻合、1 行日期不符（追溯到 2025-04-05 的例外，库里只有 04-11 的签署日）、缺 3 条（2025-04-10 他国国别税率暂停、122 附加税、301 新税）；锂电池（`lithium-ion-hts10-both-2017-2026`）16 行吻合、MFN 一行不在库里（库不收基础税率）、缺同样 3 条。
 - 时间线 CSV 没改：改了会换 `study_sha256`，已交付的报告要重跑，等用户决定。
+
+### D-027 — 时间线按关税库改写，两份报告重跑
+
+- 用户回"Update and rerun"（问的是要不要按关税库改两份时间线、重跑两份报告）。
+- 时间线：`_country.csv` 11 → 14 行，`smartphones.csv` 2 → 4 行，`lithium-ion.csv` 仍 6 行。`source`、`source_url` 换成 FR 或 HTS 档案原文，`notes` 写关税库的 measure_id。国家层新增 2025-04-10 其他来源地国别税率暂停、2026-02-24 Section 122 附加税、2026-07-24 Section 301 强迫劳动加征；手机加两行豁免（9903.03.03、9903.05.86）；2026-02-20 原来的"Global tariff adjustment"换成 EO 14389（宣布日，停征日待核对）。所有行仍是 `draft`。手机追溯到 2025-04-05 的那一行留着，仍待核对（要读 cbp.gov）。
+- `registry-check` 之后：手机 17 行吻合、1 行日期不符（同上一条）、库里没有时间线漏掉的；锂电 19 行吻合、MFN 一行不在库里、没有漏掉的。
+- 锂电 study 加了 D-024 的辅助：`[brief] candidates`、`[anomalies]` 和 6 条 `[[derived]]`（几段月份里的最低、最高月，Thailand 两个单月）。原因：旧 brief 早于 D-024，几十处数字追不到表，过不了 brief-check。`[decomposition]` 没开，窗口要先从 `window_candidates` 里选。旧 brief 里三处从 `processed/trade_tidy.csv` 算的数（Thailand 在 .0090 的占比、South Korea EV 的单价、非 EV 滚动 12 个月重量）`[[derived]]` 做不到（只到来源地层），换成能追到表的数，或者删掉。
+- 新输出（旧目录都没动）：
+  - 手机 `outputs/runs/smartphones-2022-2026/plan-2ca86ee6e514/analysis-347af3a6af92/`：brief 由上一版改写（时间线一节、T 编号、第 4 节问题），brief-check 442/442。
+  - 锂电 `outputs/runs/lithium-ion-hts10-both-2017-2026/plan-2562effd15db/analysis-2c0c6daf19a5/`：brief 按六节重写，brief-check 324/324。中间只改了时间线的那次 `analysis-9d3a968fb431` 没有 brief，被这一版取代。
+  - 两份 `final_report.pdf` 已生成，逐页看过。
+- 还没传 GitHub。

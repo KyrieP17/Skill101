@@ -30,6 +30,14 @@ country = "config/tariff_timelines/_country.csv"
 
 [brief]
 focal_split = true
+# D-024, added 2026-11-09 with the registry rerun (D-026): must-mention list and
+# window candidates.  No [decomposition] yet: its windows are chosen from
+# window_candidates first.
+candidates = true
+
+# D-024: rule flags for the brief's questions.
+[anomalies]
+enabled = true
 
 [[segments]]
 label = "EV"
@@ -42,3 +50,52 @@ codes = ["8507600020", "8507600030", "8507600090"]
 # Drill-down menu: the current HTS structure (cached REST search, hash in SOURCES.md).
 [drilldown]
 structure = "scopes/lithium-ion/v2/history/hts_rest_search_8507.60.json"
+
+# Numbers the brief uses that no standard table holds (D-024): declared here,
+# written to tables/calculations.csv by analyze.  Origin level (all four HTS10
+# codes together); "Other origins" = World - China.
+[[derived]]
+id = "china-share-2024h2"
+label = "China share, lowest and highest month, Jul-Dec 2024"
+origin = "China"
+measure = "share"
+stat = ["min", "max"]
+window = ["2024-07", "2024-12"]
+
+[[derived]]
+id = "months-2026"
+label = "China and other origins, share and realized duty: lowest and highest month, Jan-Sep 2026"
+origin = ["China", "Other origins"]
+measure = ["share", "realized_duty"]
+stat = ["min", "max"]
+window = ["2026-01", "2026-09"]
+
+[[derived]]
+id = "others-duty-2025h2"
+label = "Other origins realized duty, lowest and highest month, Jul-Dec 2025"
+origin = "Other origins"
+measure = "realized_duty"
+stat = ["min", "max"]
+window = ["2025-07", "2025-12"]
+
+[[derived]]
+id = "thailand-2026-07"
+label = "Thailand, July 2026"
+origin = "Thailand"
+measure = ["value", "quantity_2", "unit_value_2", "realized_duty"]
+window = "2026-07"
+
+[[derived]]
+id = "thailand-2026-09"
+label = "Thailand, September 2026"
+origin = "Thailand"
+measure = ["value", "quantity_2", "unit_value_2", "realized_duty"]
+window = "2026-09"
+
+[[derived]]
+id = "thailand-before"
+label = "Thailand, lowest and highest month, Oct 2025 - Jun 2026"
+origin = "Thailand"
+measure = ["quantity_2", "unit_value_2"]
+stat = ["min", "max"]
+window = ["2025-10", "2026-06"]
